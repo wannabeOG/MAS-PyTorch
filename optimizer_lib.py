@@ -27,6 +27,8 @@ class local_sgd(optim.SGD):
 		if closure is not None:
 			loss = closure()
 
+		reg_lambda = reg_params['lambda']
+
 		for group in self.param_groups:
 			weight_decay = group['weight_decay']
 			momentum = group['momentum']
@@ -61,6 +63,7 @@ class local_sgd(optim.SGD):
 					del curr_param_value
 
 					d_p = d_p + local_grad
+					
 					del local_grad
 					
 				
@@ -82,8 +85,6 @@ class local_sgd(optim.SGD):
 				p.data.add_(-group['lr'], d_p)
 
 		return loss
-
-
 
 
 class omega_update(optim.SGD):
@@ -137,4 +138,52 @@ class omega_update(optim.SGD):
 		return loss
 
 
-class 
+class omega_vector_update():
+
+	def __init__(self, params, lr = 0.001, momentum = 0, dampening = 0, weight_decay = 0, nesterov = False):
+		super(omega_update, self).__init__(params, lr, momentum, dampening, weight_decay, nesterov)
+	
+	def __setstate__(self, state):
+		super(omega_update, self).__setstate__(state)
+
+	def step(self, reg_params, batch_index, batch_size, closure = None):
+		loss = None
+
+		if closure is not None:
+			loss = closure()
+
+		for group in self.param_groups:
+			weight_decay = group['weight_decay']
+			momentum = group['momentum']
+			dampening = group['dampening']
+			nesterov = group['nesterov']
+
+			for p in group['params']:
+				if p.grad is None:
+					continue
+
+				if p in reg_params:
+
+					grad_data = p.grad.data
+
+					#The absolute value of the grad_data that is to be added to omega 
+					grad_data_copy = p.grad.data.clone()
+					grad_data_copy = grad_data_copy.abs()
+					
+
+					param_dict = reg_params[p]
+
+					omega = reg_param['omega']
+					omega = omega.cuda()
+
+					current_size = (batch_index+1)*batch_size
+					step_size = 1/float(current_size)
+
+					#Incremental update for the omega dependant 
+					omega = omega + step_size*(grad_data_copy - batch_size*(omega))
+
+					param_dict['omega'] = omega
+
+					reg_params[p] = param_dict
+
+		return loss
