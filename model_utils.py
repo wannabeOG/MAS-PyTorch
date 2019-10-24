@@ -56,7 +56,7 @@ def init_reg_params(model, freeze_layers = []):
 			temp['init_val'] = init_val
 
 			#the key for this dictionary is the name of the layer
-			reg_params[name] = temp
+			reg_params[param] = temp
 
 	return reg_params 
 
@@ -78,7 +78,6 @@ def init_reg_params_acrosstasks(model):
 	reg_params = model.reg_params
 
 	for name, param in model.named_parameters():
-		
 		temp = reg_params[name]
 		print ("Initializing the omega values for layer for the new task", name)
 		
@@ -96,7 +95,7 @@ def init_reg_params_acrosstasks(model):
 		temp['init_val'] = init_val
 
 		#the key for this dictionary is the name of the layer
-		reg_params[name] = temp
+		reg_params[param] = temp
 
 	return reg_params
 
@@ -132,7 +131,7 @@ def consolidate_reg_params(model, freeze_layers = []):
 		temp['omega'] = new_omega
 
 		#the key for this dictionary is the name of the layer
-		reg_params[name] = temp
+		reg_params[param] = temp
 
 	return reg_params
 
@@ -144,6 +143,7 @@ def compute_omega_values():
 
 	model.eval()
 
+	index = 0
 	for data in dataloader:
 		
 		#get the inputs and labels
@@ -159,6 +159,7 @@ def compute_omega_values():
 		#get the function outputs
 		outputs = model(inputs)
 
+		#compute the sqaured l2 norm of the function outputs
 		l2_norm = torch.norm(outputs, 2)
 		squared_l2_norm = l2_norm**2
 
@@ -172,13 +173,3 @@ def compute_omega_values():
 		index = index + 1
 
 	return model
-
-
-
-
-
-
-
-
-
-
