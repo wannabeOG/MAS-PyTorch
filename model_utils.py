@@ -29,7 +29,7 @@ def exp_lr_scheduler(optimizer, epoch, init_lr=0.0008, lr_decay_epoch=5):
 	return optimizer
 
 
-def init_reg_params(model, freeze_layers = []):
+def init_reg_params(model, freeze_layers = [], use_gpu):
 	"""
 	Input:
 	1) model: A reference to the model that is being trained
@@ -42,26 +42,30 @@ def init_reg_params(model, freeze_layers = []):
 
 	Function:
 	"""
+	device = torch.device("cuda:0" if use_gpu else "cpu")
+
 	reg_params = {}
 
 	for name, param in model.named_parameters():
 		if not name in freeze_layers:
 			print ("Initializing omega values for layer", name)
 			omega = torch.FloatTensor(param.size()).zero_()
+			omega = omega.to(device)
+
 			init_val = param.data.clone()
-			temp = {}
+			param_dict = {}
 
 			#for first task, omega is initialized to zero
-			temp['omega'] = omega
-			temp['init_val'] = init_val
+			param_dict['omega'] = omega
+			param_dict['init_val'] = init_val
 
 			#the key for this dictionary is the name of the layer
-			reg_params[param] = temp
+			reg_params[param] = param_dict
 
 	return reg_params 
 
 
-def init_reg_params_across_tasks(model):
+def init_reg_params_across_tasks(model, use_gpu):
 	"""
 	Input:
 	1) model: A reference to the model that is being trained
@@ -75,24 +79,30 @@ def init_reg_params_across_tasks(model):
 	"""
 
 	#Get the reg_params for the model 
+	
+	device = torch.device("cuda:0" is use_gpu else "cpu")
+
 	reg_params = model.reg_params
 
 	for name, param in model.named_parameters():
-		temp = reg_params[name]
+		param_dict = reg_params[param]
 		print ("Initializing the omega values for layer for the new task", name)
 		
 		#Store the previous values of omega
-		prev_omega = temp['omega']
+		prev_omega = param_dict['omega']
 		
 		#Initialize a new omega
-		new_omega = torch.FloatTensor(param.size()).zero_()
+		new_omega = torch.zeros(param.size())
+		new_omega = new_omega.to(device)
+
 		init_val = param.data.clone()
-		
-		temp['prev_omega'] = prev_omega
-		temp['omega'] = new_omega
+		init_val = init_val.to(device)
+
+		param_dict['prev_omega'] = prev_omega
+		param_dict['omega'] = new_omega
 
 		#store the initial values of the parameters
-		temp['init_val'] = init_val
+		param_dict['init_val'] = init_val
 
 		#the key for this dictionary is the name of the layer
 		reg_params[param] = temp
@@ -100,7 +110,7 @@ def init_reg_params_across_tasks(model):
 	return reg_params
 
 
-def consolidate_reg_params(model, freeze_layers = []):
+def consolidate_reg_params(model, use_gpu):
 	"""
 	Input:
 	1) model: A reference to the model that is being trained
@@ -118,27 +128,28 @@ def consolidate_reg_params(model, freeze_layers = []):
 
 	for name, param in model.named_parameters():
 		
-		temp = reg_params[name]
+		param_dict = reg_params[name]
 		print ("Consolidating the omega values for layer", name)
 		
 		#Store the previous values of omega
-		prev_omega = temp['prev_omega']
-		new_omega = temp['omega']
+		prev_omega = param_dict['prev_omega']
+		new_omega = param_dict['omega']
 
 		new_omega = torch.add(prev_omega, new_omega)
-		del temp['prev_omega']
+		del param_dict['prev_omega']
 		
-		temp['omega'] = new_omega
+		param_dict['omega'] = new_omega
 
 		#the key for this dictionary is the name of the layer
-		reg_params[param] = temp
+		reg_params[param] = param_dict
 
 	return reg_params
 
 
-def compute_omega_grads_norm():
+def compute_omega_grads_norm(model, dataloader, optimizer, ):
 	"""
-	global version for computing
+	global version for computing the l2 norm of the function (neural network's) outputs
+	This function also fills up the parameter values
 	"""
 
 	model.eval()
@@ -150,7 +161,7 @@ def compute_omega_grads_norm():
 		inputs, labels = data
 
 		if(use_gpu):
-			device = torch.device("cuda:0")
+			device = torch.device("cuda:0" if use_gpu else "cpu")
 			inputs, labels = inputs.to(device), labels.to(device)
 
 		#Zero the parameter gradients
@@ -160,19 +171,21 @@ def compute_omega_grads_norm():
 		outputs = model(inputs)
 
 		#compute the sqaured l2 norm of the function outputs
-		l2_norm = torch.norm(outputs, 2)
+		l2_norm = torch.norm(outputs, 2, dim = 1)
 		squared_l2_norm = l2_norm**2
-
+		sum_norm = torch.sum(squared_l2_norm)
+		
 		#compute gradients for these parameters
-		squared_l2_norm.backward()
+		sum_norm.backward()
 
+		#optimizer.step computes the omega values for the new batches of data
 		optimizer.step(model.reg_params, index, labels.size(0))
 
 		index = index + 1
 
 	return model
 
-def compute_omega_grads_vector():
+def compute_omega_grads_vector(model, dataloader, optimizer):
 	"""
 	global version for computing
 	"""
@@ -208,12 +221,14 @@ def compute_omega_grads_vector():
 					#This retains the computational graph for further computations 
 					targets.backward(retain_graph = True)
 
-				optimizer.step(model.reg_params, True, index, labels.size(0))
+				optimizer.step(model.reg_params, False, index, labels.size(0))
+				
+				#necessary to compute the correct gradients for each batch of data
 				optimizer.zero_grad()
 
 			
-		optimizer.step(model.reg_params, False, index, labels.size(0))
-		index = index + 1
+			optimizer.step(model.reg_params, True, index, labels.size(0))
+			index = index + 1
 
 	return model
 

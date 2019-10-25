@@ -50,6 +50,7 @@ class local_sgd(optim.SGD):
 					init_val = param_dict['init_val']
 
 					curr_param_value = p.data
+					curr_param_value = curr_param_value.cuda()
 					init_val = init_val.cuda()
 					omega = omega.cuda()
 
@@ -119,16 +120,15 @@ class omega_update(optim.SGD):
 					grad_data_copy = p.grad.data.clone()
 					grad_data_copy = grad_data_copy.abs()
 					
-
 					param_dict = reg_params[p]
 
 					omega = reg_param['omega']
-					omega = omega.cuda()
+					omega = omega.to(device)
 
 					current_size = (batch_index+1)*batch_size
 					step_size = 1/float(current_size)
 
-					#Incremental update for the omega dependant 
+					#Incremental update for the omega
 					omega = omega + step_size*(grad_data_copy - batch_size*(omega))
 
 					param_dict['omega'] = omega
@@ -138,7 +138,7 @@ class omega_update(optim.SGD):
 		return loss
 
 
-class omega_vector_update():
+class omega_vector_update(optim.SGD):
 
 	def __init__(self, params, lr = 0.001, momentum = 0, dampening = 0, weight_decay = 0, nesterov = False):
 		super(omega_update, self).__init__(params, lr, momentum, dampening, weight_decay, nesterov)
@@ -146,8 +146,10 @@ class omega_vector_update():
 	def __setstate__(self, state):
 		super(omega_update, self).__setstate__(state)
 
-	def step(self, reg_params, batch_index, batch_size, closure = None):
+	def step(self, reg_params, finality, batch_index, batch_size, closure = None):
 		loss = None
+
+		device = torch.device("cuda:0" id use_gpu else "cpu")
 
 		if closure is not None:
 			loss = closure()
@@ -170,20 +172,47 @@ class omega_vector_update():
 					grad_data_copy = p.grad.data.clone()
 					grad_data_copy = grad_data_copy.abs()
 					
-
 					param_dict = reg_params[p]
 
-					omega = reg_param['omega']
-					omega = omega.cuda()
+					if not finality:
+						
+						if 'temp_grad' in reg_params.keys():
+							temp_grad = param_dict['temp_grad']
+						
+						else:
+							temp_grad = torch.FloatTensor(p.data.size()).zero_()
+							temp_grad = temp_grad.to(device)
+						
+						temp_grad = temp_grad + grad_data_copy
+						param_dict['temp_grad'] = temp_grad
+						
+						del temp_data
 
-					current_size = (batch_index+1)*batch_size
-					step_size = 1/float(current_size)
 
-					#Incremental update for the omega dependant 
-					omega = omega + step_size*(grad_data_copy - batch_size*(omega))
+					else:
+						
+						#temp_grad variable
+						temp_grad = param_dict['temp_grad']
+						temp_grad = temp_grad + grad_data_copy
 
-					param_dict['omega'] = omega
+						#omega variable
+						omega = param_dict['omega']
+						omega.to(device)
 
-					reg_params[p] = param_dict
+						current_size = (batch_index+1)*batch_size
+						step_size = 1/float(current_size)
+
+						#Incremental update for the omega  
+						omega = omega + step_size*(temp_grad - batch_size*(omega))
+
+						param_dict['omega'] = omega
+						
+						reg_params[p] = param_dict
+
+						del omega
+						del param_dict
+					
+					del grad_data
+					del grad_data_copy
 
 		return loss
