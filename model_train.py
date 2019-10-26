@@ -12,6 +12,8 @@ import copy
 import os
 import shutil
 
+from model_utils import *
+
 def train_model(model, feature_extractor, path, optimizer, encoder_criterion, dset_loaders, dset_size, num_epochs, checkpoint_file, use_gpu, lr = 0.003):
 	"""
 	Inputs:
@@ -37,6 +39,8 @@ def train_model(model, feature_extractor, path, optimizer, encoder_criterion, ds
 	device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 	num_of_classes = 0
 
+	omega_epochs = num_epochs + 1
+
 	######################## Code for loading the checkpoint file #########################
 	
 	if (os.path.isfile(path + "/" + checkpoint_file)):
@@ -54,76 +58,84 @@ def train_model(model, feature_extractor, path, optimizer, encoder_criterion, ds
 
 	##########################################################################################
 
-	for epoch in range(start_epoch, num_epochs):
+	for epoch in range(start_epoch, omega_epochs):
 
-		print ("Epoch {}/{}".format(epoch+1, num_epochs))
-		print ("-"*10)
-
-		# The model is evaluated at each epoch and the best performing model 
-		# on the validation set is saved 
-
-		for phase in ['train', 'val']:
-
-			if (phase == 'train'):
-				optimizer = exp_lr_scheduler(optimizer, epoch, lr)
-				model.train(True)
-
-			else:
-				model.train(False)
-				model.eval(True)
+		if (epoch == omega_epochs -1):
 			
-			running_loss = 0
-			
-			for data in dset_loaders[phase]:
-				
-				input_data, labels = data
+			print ("Updating the omega values for this task")
+			compute_omega_grads_norm(model, dataloader, optimizer, )
+		
+		else:
 
-				del labels
-				del data
+			print ("Epoch {}/{}".format(epoch+1, num_epochs))
+			print ("-"*10)
 
-				if (use_gpu):
-					input_data = Variable(input_data.to(device))
-					labels = Variable(labels.to(device)) 
-				
-				else:
-					input_data  = Variable(input_data)
-					labels = Variable(labels)
+			# The model is evaluated at each epoch and the best performing model 
+			# on the validation set is saved 
 
-				# Input_to_ae is the features from the last convolutional layer
-				# of an Alexnet trained on Imagenet 
-
-				#input_data = F.sigmoid(input_data)
-				
-				optimizer.zero_grad()
-				
-				model.to(device)
-
-				outputs = model(input_data)
-				_, preds = torch.max(outputs.data, 1)
-				loss = model_criterion(preds, labels)
+			for phase in ['train', 'val']:
 
 				if (phase == 'train'):
-					loss.backward()
-					optimizer.step()
+					optimizer = exp_lr_scheduler(optimizer, epoch, lr)
+					model.train(True)
 
-
-				running_loss += loss.item()
-			
-			epoch_loss = running_loss/dset_size
-
-			
-			print('Epoch Loss:{}'.format(epoch_loss))
+				else:
+					model.train(False)
+					model.eval(True)
 				
-			#Creates a checkpoint every 5 epochs
-			if(epoch != 0 and (epoch+1) % 5 == 0 and epoch != num_of_epochs - 1):
-				epoch_file_name = os.path.join(path, str(epoch+1)+'.pth.tar')
-				torch.save({
-				'epoch': epoch,
-				'epoch_loss': epoch_loss, 
-				'model_state_dict': model.state_dict(),
-				'optimizer_state_dict': optimizer.state_dict(),
+				running_loss = 0
+				
+				model = model.to(device)
 
-				}, epoch_file_name)
+				for data in dset_loaders[phase]:
+					
+					input_data, labels = data
+
+					del labels
+					del data
+
+					if (use_gpu):
+						input_data = Variable(input_data.to(device))
+						labels = Variable(labels.to(device)) 
+					
+					else:
+						input_data  = Variable(input_data)
+						labels = Variable(labels)
+
+					# Input_to_ae is the features from the last convolutional layer
+					# of an Alexnet trained on Imagenet 
+
+					#input_data = F.sigmoid(input_data)
+					
+					optimizer.zero_grad()
+					
+					outputs = model(input_data)
+					_, preds = torch.max(outputs.data, 1)
+					
+					loss = model_criterion(preds, labels)
+
+					if (phase == 'train'):
+						loss.backward()
+						optimizer.step()
+
+
+					running_loss += loss.item()
+				
+				epoch_loss = running_loss/dset_size
+
+				
+				print('Epoch Loss:{}'.format(epoch_loss))
+					
+				#Creates a checkpoint every 5 epochs
+				if(epoch != 0 and (epoch+1) % 5 == 0 and epoch != num_of_epochs - 1):
+					epoch_file_name = os.path.join(path, str(epoch+1)+'.pth.tar')
+					torch.save({
+					'epoch': epoch,
+					'epoch_loss': epoch_loss, 
+					'model_state_dict': model.state_dict(),
+					'optimizer_state_dict': optimizer.state_dict(),
+
+					}, epoch_file_name)
 
 
 		
