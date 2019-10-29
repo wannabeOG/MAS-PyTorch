@@ -152,7 +152,6 @@ def compute_omega_grads_norm(model, dataloader, optimizer, ):
 	This function also fills up the parameter values
 	"""
 	
-	model.train(False)
 	model.eval(True)
 
 	index = 0
@@ -233,6 +232,47 @@ def compute_omega_grads_vector(model, dataloader, optimizer):
 			index = index + 1
 
 	return model
+
+
+
+def initialize_new_model(model_init, num_classes, num_of_classes_old):
+	""" 
+	Inputs: 
+		1) model_init = A reference to the model which needs to be initialized
+		2) num_classes = The number of classes in the new task for which we need to train a expert  
+		3) num_of_classes_old = The number of classes in the model that is used as a reference for
+		   initializing the new model.
+		4) flag = to indicate if best_relatedness is greater or less than 0.85     
+
+	Outputs:
+		1) autoencoder = A reference to the autoencoder object that is created 
+		2) store_path = Path to the directory where the trained model and the checkpoints will be stored
+
+	Function: This function takes in a reference model and initializes a new model with the reference model's
+	weights (for the old task) and the weights for the new task are initialized using the kaiming initialization
+	method
+
+	"""	
+
+	device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+	weight_info = model_init.Tmodel.classifier[-1].weight.data.to(device)
+	weight_info = weight_info.to(device)
+	
+
+	model_init.Tmodel.classifier[-1] = nn.Linear(model_init.Tmodel.classifier[-1].in_features, num_of_classes_old + num_classes)
+	nn.init.kaiming_normal_(model_init.Tmodel.classifier[-1].weight, nonlinearity='sigmoid')
+	
+	#kaiming_initilaization()
+	model_init.Tmodel.classifier[-1].weight.data[:num_of_classes_old, :] = weight_info
+	
+	#print (model_init.Tmodel.classifier[-1].weight.type())
+	model_init.to(device)
+	#print (model_init.Tmodel.classifier[-1].weight.type())
+	model_init.train(True)
+	
+	#print (next(model_init.parameters()).is_cuda)
+	return model_init 
 
 
 def initialize_model(dset_classes):

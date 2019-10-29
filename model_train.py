@@ -116,7 +116,7 @@ def train_model(model, feature_extractor, path, optimizer, encoder_criterion, ds
 
 					if (phase == 'train'):
 						loss.backward()
-						optimizer.step()
+						optimizer.step(model.reg_params)
 
 
 					running_loss += loss.item()

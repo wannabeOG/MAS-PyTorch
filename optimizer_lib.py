@@ -51,11 +51,14 @@ class local_sgd(optim.SGD):
 
 					curr_param_value = p.data
 					curr_param_value = curr_param_value.cuda()
+					
 					init_val = init_val.cuda()
 					omega = omega.cuda()
 
 					#get the difference
 					param_diff = curr_param_value - init_val
+
+					#get the gradient for the penalty term for change in the weights of the parameters
 					local_grad = torch.mul(param_diff, 2*reg_lambda*omega)
 					
 					del param_diff
