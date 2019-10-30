@@ -17,7 +17,7 @@ from model_train import *
 from optimizer_lib import *
 
 
-def mas_train(no_of_tasks):
+def mas_train(model, no_of_tasks):
 
 	print ("The model is being trained on task {}".format())
 
@@ -26,6 +26,7 @@ def mas_train(no_of_tasks):
 
 		#initialize reg_params for task 0
 		if (t == 0):
+			
 			model.reg_params = init_reg_params(model, use_gpu)
 		
 		#initialize reg_params for tasks > 0 
@@ -33,3 +34,8 @@ def mas_train(no_of_tasks):
 			model.reg_params = init_reg_params_across_tasks(model, use_gpu)
 
 		train_model()
+
+
+
+def mas_test():
+	

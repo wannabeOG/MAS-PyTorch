@@ -29,275 +29,6 @@ def exp_lr_scheduler(optimizer, epoch, init_lr=0.0008, lr_decay_epoch=5):
 	return optimizer
 
 
-def init_reg_params(model, use_gpu, freeze_layers = []):
-	"""
-	Input:
-	1) model: A reference to the model that is being trained
-	2) freeze_layers: A layer which 
-
-	Output:
-	1) reg_params: A dictionary containing importance weights (omega), init_val (keep a reference 
-	to the initial values of the parameters) for all trainable parameters
-
-
-	Function:
-	"""
-	device = torch.device("cuda:0" if use_gpu else "cpu")
-
-	reg_params = {}
-
-	for name, param in model.named_parameters():
-		if not name in freeze_layers:
-			print ("Initializing omega values for layer", name)
-			omega = torch.FloatTensor(param.size()).zero_()
-			omega = omega.to(device)
-
-			init_val = param.data.clone()
-			param_dict = {}
-
-			#for first task, omega is initialized to zero
-			param_dict['omega'] = omega
-			param_dict['init_val'] = init_val
-
-			#the key for this dictionary is the name of the layer
-			reg_params[param] = param_dict
-
-	return reg_params 
-
-
-def init_reg_params_across_tasks(model, use_gpu):
-	"""
-	Input:
-	1) model: A reference to the model that is being trained
-
-	Output:
-	1) reg_params: A dictionary containing importance weights (omega), init_val (keep a reference 
-	to the initial values of the parameters) for all trainable parameters
-
-
-	Function:
-	"""
-
-	#Get the reg_params for the model 
-	
-	device = torch.device("cuda:0" is use_gpu else "cpu")
-
-	reg_params = model.reg_params
-
-	for name, param in model.named_parameters():
-		param_dict = reg_params[param]
-		print ("Initializing the omega values for layer for the new task", name)
-		
-		#Store the previous values of omega
-		prev_omega = param_dict['omega']
-		
-		#Initialize a new omega
-		new_omega = torch.zeros(param.size())
-		new_omega = new_omega.to(device)
-
-		init_val = param.data.clone()
-		init_val = init_val.to(device)
-
-		param_dict['prev_omega'] = prev_omega
-		param_dict['omega'] = new_omega
-
-		#store the initial values of the parameters
-		param_dict['init_val'] = init_val
-
-		#the key for this dictionary is the name of the layer
-		reg_params[param] = temp
-
-	return reg_params
-
-
-def consolidate_reg_params(model, use_gpu):
-	"""
-	Input:
-	1) model: A reference to the model that is being trained
-
-	Output:
-	1) reg_params: A dictionary containing importance weights (omega), init_val (keep a reference 
-	to the initial values of the parameters) for all trainable parameters
-
-
-	Function:
-	"""
-
-	#Get the reg_params for the model 
-	reg_params = model.reg_params
-
-	for name, param in model.named_parameters():
-		
-		param_dict = reg_params[name]
-		print ("Consolidating the omega values for layer", name)
-		
-		#Store the previous values of omega
-		prev_omega = param_dict['prev_omega']
-		new_omega = param_dict['omega']
-
-		new_omega = torch.add(prev_omega, new_omega)
-		del param_dict['prev_omega']
-		
-		param_dict['omega'] = new_omega
-
-		#the key for this dictionary is the name of the layer
-		reg_params[param] = param_dict
-
-	return reg_params
-
-
-def compute_omega_grads_norm(model, dataloader, optimizer, ):
-	"""
-	global version for computing the l2 norm of the function (neural network's) outputs
-	This function also fills up the parameter values
-	"""
-	
-	model.eval(True)
-
-	index = 0
-	for data in dataloader:
-		
-		#get the inputs and labels
-		inputs, labels = data
-
-		if(use_gpu):
-			device = torch.device("cuda:0" if use_gpu else "cpu")
-			inputs, labels = inputs.to(device), labels.to(device)
-
-		#Zero the parameter gradients
-		optimizer.zero_grad()
-
-		#get the function outputs
-		outputs = model(inputs)
-
-		#compute the sqaured l2 norm of the function outputs
-		l2_norm = torch.norm(outputs, 2, dim = 1)
-		squared_l2_norm = l2_norm**2
-		sum_norm = torch.sum(squared_l2_norm)
-		
-		#compute gradients for these parameters
-		sum_norm.backward()
-
-		#optimizer.step computes the omega values for the new batches of data
-		optimizer.step(model.reg_params, index, labels.size(0))
-
-		index = index + 1
-
-	return model
-
-#need a different function for grads vector
-def compute_omega_grads_vector(model, dataloader, optimizer):
-	"""
-	global version for computing
-	"""
-	model.train(False)
-	model.eval(True)
-
-	index = 0
-
-	for dataloader in dset_loaders:
-		for data in dataloader:
-			
-			#get the inputs and labels
-			inputs, labels = data
-
-			if(use_gpu):
-				device = torch.device("cuda:0")
-				inputs, labels = inputs.to(device), labels.to(device)
-
-			#Zero the parameter gradients
-			optimizer.zero_grad()
-
-			#get the function outputs
-			outputs = model(inputs)
-
-			for unit_no in range(0, outputs.size(1)):
-				ith_node = outputs[:, unit_no]
-				targets = torch.sum(ith_node)
-
-				#final node in the layer
-				if(node_no == outputs.size(1)-1):
-					targets.backward()
-				else:
-					#This retains the computational graph for further computations 
-					targets.backward(retain_graph = True)
-
-				optimizer.step(model.reg_params, False, index, labels.size(0))
-				
-				#necessary to compute the correct gradients for each batch of data
-				optimizer.zero_grad()
-
-			
-			optimizer.step(model.reg_params, True, index, labels.size(0))
-			index = index + 1
-
-	return model
-
-
-
-def initialize_new_model(model_init, num_classes, num_of_classes_old):
-	""" 
-	Inputs: 
-		1) model_init = A reference to the model which needs to be initialized
-		2) num_classes = The number of classes in the new task for which we need to train a expert  
-		3) num_of_classes_old = The number of classes in the model that is used as a reference for
-		   initializing the new model.
-		4) flag = to indicate if best_relatedness is greater or less than 0.85     
-
-	Outputs:
-		1) autoencoder = A reference to the autoencoder object that is created 
-		2) store_path = Path to the directory where the trained model and the checkpoints will be stored
-
-	Function: This function takes in a reference model and initializes a new model with the reference model's
-	weights (for the old task) and the weights for the new task are initialized using the kaiming initialization
-	method
-
-	"""	
-
-	device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-	weight_info = model_init.Tmodel.classifier[-1].weight.data.to(device)
-	weight_info = weight_info.to(device)
-	
-
-	model_init.Tmodel.classifier[-1] = nn.Linear(model_init.Tmodel.classifier[-1].in_features, num_of_classes_old + num_classes)
-	nn.init.kaiming_normal_(model_init.Tmodel.classifier[-1].weight, nonlinearity='sigmoid')
-	
-	#kaiming_initilaization()
-	model_init.Tmodel.classifier[-1].weight.data[:num_of_classes_old, :] = weight_info
-	
-	#print (model_init.Tmodel.classifier[-1].weight.type())
-	model_init.to(device)
-	#print (model_init.Tmodel.classifier[-1].weight.type())
-	model_init.train(True)
-	
-	#print (next(model_init.parameters()).is_cuda)
-	return model_init 
-
-
-def initialize_model(dset_classes):
-	"""
-	Freeze the layers of the model you do not want to train
-	"""
-	model_init = models.alexnet(pretrained = True)
-	
-	in_features = model_init.classifier[len(model_init.classifier._modules)-1].in_features	
-	model_init.classifier[len(model_init.classifier._modules)-1] = nn.Linear(in_features, dset_classes)
-
-	for param in model_init.classifier.parameters():
-		param.requires_grad = True
-
-	for param in model_init.features.parameters():
-		param.requires_grad = False
-
-	for param in model_init.features[8].parameters():
-		param.requires_grad = True
-
-	for param in model_init.features[9].parameters():
-		param.requires_grad = True
-
-
-
 
 def model_criterion():
 	loss =  nn.CrossEntropyLoss()
@@ -306,3 +37,136 @@ def model_criterion():
 
 
 
+def create_task_dir(task_no, no_of_classes):
+	"""
+	Inputs
+	1) task_no: The identity for the task 
+	"""
+	curr_dir = os.getcwd()
+	
+	if not (os.isdir(os.path.join(curr_dir, "models"))):
+		os.mkdir(os.path.join(curr_dir, "models"))
+
+	store_path = os.path.join(curr_dir, "models", "Task_" + str(task_no))
+	os.mkdir(store_path)
+
+	file_path = os.path.join(store_path, "classes.txt") 
+
+	with open(file_path, 'w') as file1:
+		input_to_txtfile = str(no_of_classes)
+		file1.write(input_to_txtfile)
+		file1.close()
+	
+	return store_path
+
+
+
+
+
+def model_inference(task_no, use_gpu = False):
+	"""
+	Inputs:
+	1) task_no: The task number for which the model is being evaluated
+	2) use_gpu: Set the flag to True if you want to run the code on GPU. Default value: False
+
+	Outputs:
+	1) model: A reference to the model
+
+	Function: Combines the classification head for a particular task with the shared model and
+	returns a reference to the model is used for testing the process
+
+	"""
+
+	#all models are derived from an alexnet architecture
+	model = models.alexnet(pretrained = True)
+	path_to_model = os.path.join(os.getcwd(), "models")
+
+	#load the trained shared model
+	model.load_state_dict(torch.load(path_to_model))
+
+	path_to_head = os.path.join(os.getcwd(), "models", "Task_" + str(task_no))
+	
+	#get the number of classes by reading from the text file created during initialization for this task
+	file_name = os.path.join(path_to_head, "classes.txt") 
+	file_object = open(file_name, 'r')
+	file_object.close()
+	
+	num_classes = int(num_classes)
+	in_features = model.classfier[-1].in_features
+	
+	#load the classifier head for the given task identified by the task number
+	classifier = classification_head(in_features, num_classes)
+	classifier.load_state_dict(torch.load(os.path.join(path_to_head, "head.pth")))
+
+	#change the weights layers to the classifier head weights
+	model.classifier[count-1].weight.data = classifier.fc.weight.data
+	model.classifier[count-1].bias.data = classifier.fc.bias.data
+
+	device = torch.device("cuda:0" if use_gpu else "cpu")
+	model.eval()
+	model.to(device)
+	
+	return model
+
+
+
+def model_init(no_classes, use_gpu = False):
+	"""
+	Inputs:
+	1) no_classes = The number of classes that the model is exposed to in the new task
+	2) use_gpu = Set the flag to True if you want to run the code on GPU. Default value = False
+
+	Outputs
+	1) model = A reference to the model that has been initialized
+
+	Function: Initializes a model for the new task which the shared features and a classification head
+	particular to the new task
+
+	"""
+
+	path = os.path.join(os.getcwd(), "models", "shared_model.pth")
+	model = models.alexnet(pretrained = True)
+	
+	if os.path.isfile(path):
+		model.load_state_dict(torch.load(path))
+
+	#initialize a new classification head
+	model.classifier[-1] = nn.Linear(model.classifier[-1].in_features, dset_classes)
+
+	device = torch.device("cuda:0" if use_gpu else "cpu")
+	model.train(True)
+	model.to(device)
+
+	return model
+
+
+
+def save_model(model, task_no):
+	"""
+	Inputs:
+	1) model = A reference to the model that needs to be saved
+	2) task_no = The task number identifies the task for which the model is to be saved
+
+	Function: Saves a reference for the classification head and the shared model at the 
+	appropriate locations
+
+	"""
+
+	in_features = model.classifier[-1].in_features 
+	out_features = model.classifier[-1].out_features
+
+	#seperate out the classification head from the model
+	ref = classification_head(in_features, out_features)
+	ref.fc1.weight.data = model.classifier[-1].weight.data
+	ref.fc1.bias.data = model.classifier[-1].bias.data
+
+	#hacky fix for storing the shared model
+	path = os.path.join(os.getcwd(), "models", "shared_model.pth")
+	torch.save(model.state_dict(), path)
+	del path
+	del model
+
+	store_path = create_task_dir(task_no, no_of_classes)
+	torch.save(ref.state_dict(), os.path.join(store_path, "head.pth"))
+
+	del ref
