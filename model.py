@@ -12,9 +12,14 @@ import copy
 import os
 import shutil
 
+import sys
+
+sys.path.append('utils')
 from model_utils import *
-from model_train import *
+from mas_utils import *
+
 from optimizer_lib import *
+from model_train import *
 
 #The idea is to have classification layers for different tasks
 
@@ -36,6 +41,13 @@ class classification_head(nn.Module):
 	def forward(self, x):
 		return x
 
+class shared_model(nn.Module):
 
+	def __init__(self, model):
+		super(shared_model, self).__init__()
+		self.tmodel = models.alexnet(pretrained = True)
+		self.reg_params = {}
 
-
+	def forward(x):
+		x = self.tmodel(x)
+		return x

@@ -12,7 +12,9 @@ import copy
 import os
 import shutil
 
+sys.path.append('utils')
 from model_utils import *
+
 
 def train_model(model, feature_extractor, path, optimizer, encoder_criterion, dset_loaders, dset_size, num_epochs, checkpoint_file, use_gpu, lr = 0.003):
 	"""
