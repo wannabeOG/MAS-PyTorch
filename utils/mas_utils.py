@@ -304,7 +304,7 @@ def create_freeze_layers(model, no_of_layers = 2):
 		freeze_layers.append(name_1, name_2)
 
 
-	return w_model, freeze_layers
+	return [w_model, freeze_layers]
 
 
 	

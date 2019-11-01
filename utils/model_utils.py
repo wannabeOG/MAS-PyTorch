@@ -33,7 +33,27 @@ def exp_lr_scheduler(optimizer, epoch, init_lr=0.0008, lr_decay_epoch=5):
 def model_criterion(preds, labels):
 	loss =  nn.CrossEntropyLoss()
 	return loss(preds, labels)
+
+
+
+def check_checkpoint(store_path):
+	onlyfiles = [f for f in os.listdir(store_path) if os.path.isfile(os.join(mypath, f))]
+	max_train = -1
+	flag = False
+
+	#Check the latest epoch file that was created
+	for file in onlyfiles:
+		if(file.endswith('pth.tr')):
+			flag = True
+			test_epoch = file[0]
+			if(test_epoch > max_train): 
+				max_epoch = test_epoch
+				checkpoint_file = file
 	
+	if (flag == False): 
+		checkpoint_file = ""
+
+
 
 def create_task_dir(task_no, no_of_classes):
 	"""
@@ -45,25 +65,26 @@ def create_task_dir(task_no, no_of_classes):
 	1) store_path: A string which represents the directory where the classification head will be stored
 
 	Function: This function creates a directory to store the classification head for the new task. It also 
-	creates a text file which stores the number of classes that this task contained
+	creates a text file which stores the number of classes that this task contained. If the directory already
+	exists it would return a checkpoint file that is then used to resume training
 	
 	"""
 
 	curr_dir = os.getcwd()
 	
-	if not (os.isdir(os.path.join(curr_dir, "models"))):
-		os.mkdir(os.path.join(curr_dir, "models"))
-
 	store_path = os.path.join(curr_dir, "models", "Task_" + str(task_no))
-	os.mkdir(store_path)
+	checkpoint_file = ''
 
+	os.mkdir(store_path)
 	file_path = os.path.join(store_path, "classes.txt") 
 
 	with open(file_path, 'w') as file1:
 		input_to_txtfile = str(no_of_classes)
 		file1.write(input_to_txtfile)
 		file1.close()
-	
+
+
+	#if the directory exists, get the checkpoint file if it exists
 	return store_path
 
 
@@ -146,7 +167,7 @@ def model_init(no_classes, use_gpu = False):
 
 
 
-def save_model(model, task_no):
+def save_model(model, task_no, no_of_classes):
 	"""
 	Inputs
 	1) model: A reference to the model that needs to be saved
@@ -157,21 +178,37 @@ def save_model(model, task_no):
 
 	"""
 
+	#create the variables
+	path_to_model = os.path.join(os.getcwd(), "models")
+	path_to_head = os.path.join(path_to_model, "Task_" + str(task_no))
+
+
+	#get the features of the classification head
 	in_features = model.classifier[-1].in_features 
 	out_features = model.classifier[-1].out_features
+
 
 	#seperate out the classification head from the model
 	ref = classification_head(in_features, out_features)
 	ref.fc1.weight.data = model.classifier[-1].weight.data
 	ref.fc1.bias.data = model.classifier[-1].bias.data
 
-	#hacky fix for storing the shared model
-	path = os.path.join(os.getcwd(), "models", "shared_model.pth")
-	torch.save(model.state_dict(), path)
-	del path
-	del model
+	#create a models directory if the directory does not exist
+	if (task_no == 1 && os.path.isdir(path_to_model)):
+		os.mkdir(path_to_model)
 
-	store_path = create_task_dir(task_no, no_of_classes)
-	torch.save(ref.state_dict(), os.path.join(store_path, "head.pth"))
+	#check if the directory already exists, in which case it does not need to be created
+	if (os.path.isdir(path_to_head)):
+		torch.save(model.state_dict(), os.path.join(path_to_model, "shared_model.pth"))
+		torch.save(ref.state_dict(), os.path.join(path_to_head, "head.pth"))
+	
+
+
+	#if the directory does not exist, create the task directory and store the head in it
+	else:
+		#save the shared model in the directory
+		torch.save(model.state_dict(), path_to_model)
+		store_path = create_task_dir(task_no, no_of_classes)
+		torch.save(ref.state_dict(), path_to_head)
 
 	del ref
