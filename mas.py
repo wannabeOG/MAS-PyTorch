@@ -13,6 +13,7 @@ import os
 import shutil
 
 import sys
+
 sys.path.append('utils')
 from model_utils import *
 from mas_utils import *
@@ -21,27 +22,18 @@ from optimizer_lib import *
 from model_train import *
 
 
-def mas_train(model, no_of_tasks, path_to_datasets):
+def mas_train(model, task_no, path_to_datasets, use_gpu = False):
 
-	#Need to train over tasks 
-	for t in range(1, no_of_tasks+1):
+	#this is the task to which the model is exposed
+	if (t == 1):
+		#initialize the reg_params for this task
+		model.reg_params = init_reg_params(model, use_gpu)
 
-		print ("The model is being trained on task {}".format(t))
+	else:
+		#inititialize the reg_params for this task
+		model.reg_params = init_reg_params_across_tasks(model, use_gpu)
 
-		#initialize reg_params for task 0
-		if (t == 1):
-			model = shared_model(models.alexnet(pretrained = True))
-			model.reg_params = init_reg_params(model, use_gpu)
-
-		
-		#initialize reg_params for tasks > 0 
-		else:
-			model = shared_model(models.alexnet(pretrained = True))
-			model.load_state_dict(torch.load(path))
-			model.reg_params = init_reg_params_across_tasks(model, use_gpu)
-
-		train_model()
-
-
+	#get the optimizer
+	optimizer_sp = local_sgd()
 
 def mas_test():

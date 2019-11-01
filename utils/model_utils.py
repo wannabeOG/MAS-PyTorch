@@ -30,10 +30,10 @@ def exp_lr_scheduler(optimizer, epoch, init_lr=0.0008, lr_decay_epoch=5):
 
 
 
-def model_criterion():
+def model_criterion(preds, labels):
 	loss =  nn.CrossEntropyLoss()
 	return loss(preds, labels)
-
+	
 
 def create_task_dir(task_no, no_of_classes):
 	"""
@@ -129,13 +129,14 @@ def model_init(no_classes, use_gpu = False):
 	"""
 
 	path = os.path.join(os.getcwd(), "models", "shared_model.pth")
-	model = models.alexnet(pretrained = True)
-	
+	pre_model = models.alexnet(pretrained = True)
+	model = shared_model(pre_model)
+
 	if os.path.isfile(path):
 		model.load_state_dict(torch.load(path))
 
 	#initialize a new classification head
-	model.classifier[-1] = nn.Linear(model.classifier[-1].in_features, dset_classes)
+	model.tmodel.classifier[-1] = nn.Linear(model.tmodel.classifier[-1].in_features, dset_classes)
 
 	device = torch.device("cuda:0" if use_gpu else "cpu")
 	model.train(True)

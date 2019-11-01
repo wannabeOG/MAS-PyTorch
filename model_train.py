@@ -16,7 +16,7 @@ sys.path.append('utils')
 from model_utils import *
 
 
-def train_model(model, feature_extractor, path, optimizer, encoder_criterion, dset_loaders, dset_size, num_epochs, checkpoint_file, use_gpu, lr = 0.003):
+def train_model(model, path, optimizer, encoder_criterion, dset_loaders, dset_size, num_epochs, checkpoint_file, use_gpu, lr = 0.003):
 	"""
 	Inputs:
 		1) model = A reference to the Autoencoder model that needs to be trained 
@@ -63,9 +63,9 @@ def train_model(model, feature_extractor, path, optimizer, encoder_criterion, ds
 	for epoch in range(start_epoch, omega_epochs):
 
 		if (epoch == omega_epochs -1):
-			
+			optimizer_ft = omega_update(model.reg_params)
 			print ("Updating the omega values for this task")
-			compute_omega_grads_norm(model, dataloader, optimizer, )
+			model = compute_omega_grads_norm(model, dataloader, optimizer_ft)
 		
 		else:
 
