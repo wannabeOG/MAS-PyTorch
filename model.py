@@ -40,6 +40,7 @@ class classification_head(nn.Module):
 
 	def forward(self, x):
 		return x
+		
 
 class shared_model(nn.Module):
 

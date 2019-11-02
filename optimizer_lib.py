@@ -152,7 +152,7 @@ class omega_vector_update(optim.SGD):
 	def step(self, reg_params, finality, batch_index, batch_size, closure = None):
 		loss = None
 
-		device = torch.device("cuda:0" id use_gpu else "cpu")
+		device = torch.device("cuda:0" if use_gpu else "cpu")
 
 		if closure is not None:
 			loss = closure()

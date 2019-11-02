@@ -67,7 +67,7 @@ def init_reg_params_across_tasks(model, use_gpu, freeze_layers = []):
 
 	#Get the reg_params for the model 
 	
-	device = torch.device("cuda:0" is use_gpu else "cpu")
+	device = torch.device("cuda:0" if use_gpu else "cpu")
 
 	reg_params = model.reg_params
 

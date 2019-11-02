@@ -23,6 +23,22 @@ from model_train import *
 
 
 def mas_train(model, task_no, no_of_layers, no_of_classes, dataloader, dset_size, use_gpu = False):
+	
+	"""
+	Inputs:
+	1) model: A reference to the model that is being exposed to the data for the task
+	2) task_no: The task that is being exposed to the model identified by it's number
+	3) no_of_layers: The number of layers that you want to freeze in the feature extractor of the Alexnet
+	4) no_of_classes: The number of classes in the task  
+	5) dataloader: Dataloader that feeds data to the model
+	6) dset_size: The size of the task (size of the dataset belonging to the task)
+	7) use_gpu: Set the flag to `True` if you want to train the model on GPU
+
+	Outputs:
+	1) model: Returns a trained model
+
+	Function: Trains the model on a particular task and deals with different tasks in the sequence
+	"""
 
 	#this is the task to which the model is exposed
 	if (t == 1):
@@ -37,8 +53,6 @@ def mas_train(model, task_no, no_of_layers, no_of_classes, dataloader, dset_size
 	#get the optimizer
 	optimizer_sp = local_sgd(model.tmodel.parameters(), lr = 0.001)
 
-	store_path = create_task_dir(task_no, no_of_classes)
-
 	model = train_model(model, path, optimizer_sp, model_criterion, dataloader, dset_size, num_epochs, checkpoint_file, use_gpu, lr = 0.003)
 
 	if (t > 1):
@@ -46,4 +60,8 @@ def mas_train(model, task_no, no_of_layers, no_of_classes, dataloader, dset_size
 
 	return model
 
-def mas_test():
+
+
+
+
+
