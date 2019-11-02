@@ -41,17 +41,21 @@ def model_criterion(preds, labels):
 
 
 def check_checkpoint(store_path):
+	
 	"""
 	Inputs
-	1) store_path:
+	1) store_path: The path where the checkpoint file will be searched at
 
 	Outputs
-	1) checkpoint_file
-	2) flag
+	1) checkpoint_file: The checkpoint file if it exists
+	2) flag: The flag will be set to True if the directory exists at the path 
 
-	Function:
+	Function: This function takes in the store_path and checks if a prior directory exists
+	for the task already. If it doesn't, flag is set to False and the function returns an empty string. 
+	If a directory exists the function returns a checkpoint file 
 
 	"""
+	
 	#if the directory does not exist return an empty string
 	if not os.path.isdir(store_path):
 		return ["", False]
@@ -86,8 +90,7 @@ def create_task_dir(task_no, no_of_classes, store_path):
 
 	
 	Function: This function creates a directory to store the classification head for the new task. It also 
-	creates a text file which stores the number of classes that this task contained. If the directory already
-	exists it would return a checkpoint file that is then used to resume training
+	creates a text file which stores the number of classes that this task contained.
 	
 	"""
 
@@ -117,11 +120,13 @@ def model_inference(task_no, use_gpu = False):
 	"""
 
 	#all models are derived from an alexnet architecture
-	model = models.alexnet(pretrained = True)
+	pre_model = models.alexnet(pretrained = True)
+	model = shared_model(pre_model)
+
 	path_to_model = os.path.join(os.getcwd(), "models")
 
 	#load the trained shared model
-	model.load_state_dict(torch.load(path_to_model))
+	model.load_state_dict(torch.load(os.join.path(path_to_model, "shared_model.pth")))
 
 	path_to_head = os.path.join(os.getcwd(), "models", "Task_" + str(task_no))
 	
@@ -131,15 +136,15 @@ def model_inference(task_no, use_gpu = False):
 	file_object.close()
 	
 	num_classes = int(num_classes)
-	in_features = model.classfier[-1].in_features
+	in_features = model.tmodel.classfier[-1].in_features
 	
 	#load the classifier head for the given task identified by the task number
 	classifier = classification_head(in_features, num_classes)
 	classifier.load_state_dict(torch.load(os.path.join(path_to_head, "head.pth")))
 
 	#change the weights layers to the classifier head weights
-	model.classifier[count-1].weight.data = classifier.fc.weight.data
-	model.classifier[count-1].bias.data = classifier.fc.bias.data
+	model.tmodel.classifier[-1].weight.data = classifier.fc.weight.data
+	model.tmodel.classifier[-1].bias.data = classifier.fc.bias.data
 
 	device = torch.device("cuda:0" if use_gpu else "cpu")
 	model.eval()
@@ -216,7 +221,7 @@ def save_model(model, task_no, no_of_classes, epoch_accuracy):
 	
 	#save the performance of the model on the task to later determine the forgetting metric
 	with open(os.path.join(path_to_head, "performance.txt"), 'w') as file1:
-		input_to_txtfile = str(no_of_classes)
+		input_to_txtfile = str(epoch_accuracy)
 		file1.write(input_to_txtfile)
 		file1.close()
 

@@ -23,7 +23,6 @@ from model_train import *
 
 
 def mas_train(model, task_no, no_of_layers, no_of_classes, dataloader, dset_size, use_gpu = False):
-	
 	"""
 	Inputs:
 	1) model: A reference to the model that is being exposed to the data for the task
@@ -61,7 +60,59 @@ def mas_train(model, task_no, no_of_layers, no_of_classes, dataloader, dset_size
 	return model
 
 
+def compute_forgetting(task_no, dataloader, dset_size):
+	"""
+	Inputs
+	1) task_no: The task number on which you want to compute the forgetting 
+	2) dataloader: The dataloader that feeds in the data to the model
 
+	Outputs
+	1) forgetting: The amount of forgetting undergone by the model
 
+	Function: Computes the "forgetting" that the model has on the 
+	"""
+	
+	#get the results file
+	store_path = os.path.join(os.getcwd(), "models", "Task_" + str(task_no))
+	model_path = os.path.join(os.getcwd(), "models")
 
+	file_object = open(os.path.join(store_path, "performance.txt"), 'r')
+	old_performance = file_object.read()
+	file_object.close()
+
+	model = model_inference(task_no, use_gpu = False)
+
+	for data in dataloader:
+		inputs, labels = data
+		del data
+
+		if (use_gpu):
+			input_data = input_data.to(device)
+			labels = labels.to(device) 
+		
+		else:
+			input_data  = Variable(input_data)
+			labels = Variable(labels)
+		
+		output = model.tmodel(input_data)
+		del input_data
+
+		_, preds = torch.max(outputs, 1)
+
+		loss = model_criterion(output, labels)
+		del output
+		
+		running_loss += loss.item()
+		del loss
+
+		running_corrects += torch.sum(preds == labels.data)
+		del preds
+		del labels
+
+	epoch_loss = running_loss/dset_size
+	epoch_accuracy = running_corrects.double()/dset_size
+
+	forgetting = epoch_accuracy - old_performance
+
+	return forgetting
 
