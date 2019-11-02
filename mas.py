@@ -60,6 +60,7 @@ def mas_train(model, task_no, no_of_layers, no_of_classes, dataloader, dset_size
 	return model
 
 
+
 def compute_forgetting(task_no, dataloader, dset_size):
 	"""
 	Inputs
@@ -115,4 +116,3 @@ def compute_forgetting(task_no, dataloader, dset_size):
 	forgetting = epoch_accuracy - old_performance
 
 	return forgetting
-
