@@ -1,10 +1,10 @@
 Memory Aware Synapses: Learning what (not) to forget
 ========================================
 
-Code for the Paper
+Code for the Paper:
 
-**[Memory Aware Synapses: Learning what (not) to forget][10]**
-Rahaf Aljundi, Francesca Babiloni, Mohamed Elhoseiny, Marcus Rohrbach, Tinne Tuytelaars
+**[Memory Aware Synapses: Learning what (not) to forget][10]**\
+Rahaf Aljundi, Francesca Babiloni, Mohamed Elhoseiny, Marcus Rohrbach, Tinne Tuytelaars\
 [ECCV 2018]
 
 If you find this code useful, please consider citing the original work by authors:
@@ -121,8 +121,8 @@ This file returns the "forgetting" that the model has undergone on previous task
 To-Do's for this project
 -------------------------------------
 
-[] Split the [MNIST dataset][12] to create another sequence of tasks and train the model on this sequence in addition to the tasks created from the Tiny_Imagenet dataset
-[] Implement the idea of local Hebbian method (referred to in the paper as "local" method) which has not been implemented in the repository open sourced by the authors
+-[ ] Split the [MNIST dataset][12] to create another sequence of tasks and train the model on this sequence in addition to the tasks created from the Tiny_Imagenet dataset
+-[ ] Implement the idea of local Hebbian method (referred to in the paper as "local" method) which has not been implemented in the repository open sourced by the authors
 
 
 References
