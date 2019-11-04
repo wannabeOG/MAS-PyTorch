@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# coding: utf-8
+
 from __future__ import print_function
 
 import torch
@@ -13,13 +16,16 @@ import os
 import shutil
 
 import sys
-sys.path.append('utils')
+import time
+
+sys.path.append('../utils')
 
 from model_utils import *
 from mas_utils import *
+from optimizer_lib import *
 
 
-def train_model(model, path, optimizer, model_criterion, dataloader, dset_size, num_epochs, use_gpu = False, lr = 0.001):
+def train_model(model, task_no, num_classes, optimizer, model_criterion, dataloader, dset_size, num_epochs, use_gpu = False, lr = 0.001, reg_lambda = 0.01):
 	"""
 	Inputs:
 	1) model: A reference to the model that is being exposed to the data for the task
@@ -42,16 +48,18 @@ def train_model(model, path, optimizer, model_criterion, dataloader, dset_size, 
 	store_path = os.path.join(os.getcwd(), "models", "Task_" + str(task_no))
 	model_path = os.path.join(os.getcwd(), "models")
 
+	device = torch.device("cuda:0" if use_gpu else "cpu")
+
 	#create a models directory if the directory does not exist
 	if (task_no == 1 and not os.path.isdir(model_path)):
-		os.mkdir(path_to_model)
+		os.mkdir(model_path)
 
 	#the flag indicates that the the directory exists
 	checkpoint_file, flag = check_checkpoint(store_path)
 
 	if (flag == False):
 		#create a task directory where the checkpoint files and the classification head will be stored
-		create_task_dir(task_no, no_classes, store_path)
+		create_task_dir(task_no, num_classes, store_path)
 		start_epoch = 0
 
 	else:
@@ -72,7 +80,7 @@ def train_model(model, path, optimizer, model_criterion, dataloader, dset_size, 
 			model = model.load_state_dict(checkpoint['state_dict'])
 			
 			print ("Loading the optimizer")
-			optimizer = local_sgd(model.reg_params)
+			optimizer = local_sgd(model.reg_params, reg_lambda)
 			optimizer = optimizer.load_state_dict(checkpoint['optimizer'])
 			
 			print ("Done")
@@ -97,17 +105,18 @@ def train_model(model, path, optimizer, model_criterion, dataloader, dset_size, 
 
 			print ("Epoch {}/{}".format(epoch+1, num_epochs))
 			print ("-"*20)
-			print ("The {}ing phase is ongoing".format(phase))
+			#print ("The training phase is ongoing")
 			
 			running_loss = 0
-			
+			running_corrects = 0
+
 			#scales the optimizer every 20 epochs 
 			optimizer = exp_lr_scheduler(optimizer, epoch, lr)
 
-			model.train(True)
+			model.tmodel.train(True)
 
 
-			for data in dset_loaders:
+			for data in dataloader:
 				input_data, labels = data
 
 				del data
@@ -120,19 +129,21 @@ def train_model(model, path, optimizer, model_criterion, dataloader, dset_size, 
 					input_data  = Variable(input_data)
 					labels = Variable(labels)
 				
-				model.to(device)
+				model.tmodel.to(device)
 				optimizer.zero_grad()
 				
 				output = model.tmodel(input_data)
 				del input_data
 
-				_, preds = torch.max(outputs, 1)
+				_, preds = torch.max(output, 1)
 				loss = model_criterion(output, labels)
 				del output
 		
 				loss.backward()
+				#print (model.reg_params)
+
 				optimizer.step(model.reg_params)
-		
+				
 				running_loss += loss.item()
 				del loss
 
@@ -144,7 +155,7 @@ def train_model(model, path, optimizer, model_criterion, dataloader, dset_size, 
 			epoch_accuracy = running_corrects.double()/dset_size
 
 
-			print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
+			print('Loss: {:.4f} Acc: {:.4f}'.format(epoch_loss, epoch_accuracy))
 			
 			#avoid saving a file twice
 			if(epoch != 0 and epoch != num_epochs -1 and (epoch+1) % 10 == 0):

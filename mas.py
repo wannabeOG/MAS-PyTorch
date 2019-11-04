@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+
 from __future__ import print_function
 
 import torch
@@ -13,6 +17,7 @@ import os
 import shutil
 
 import sys
+import time
 
 sys.path.append('utils')
 from model_utils import *
@@ -22,7 +27,7 @@ from optimizer_lib import *
 from model_train import *
 
 
-def mas_train(model, task_no, no_of_layers, no_of_classes, dataloader, dset_size, use_gpu = False):
+def mas_train(model, task_no, num_epochs, no_of_layers, no_of_classes, dataloader, dset_size, lr = 0.001, reg_lambda = 0.01, use_gpu = False):
 	"""
 	Inputs:
 	1) model: A reference to the model that is being exposed to the data for the task
@@ -40,21 +45,21 @@ def mas_train(model, task_no, no_of_layers, no_of_classes, dataloader, dset_size
 	"""
 
 	#this is the task to which the model is exposed
-	if (t == 1):
+	if (task_no == 1):
 		#initialize the reg_params for this task
 		model, freeze_layers = create_freeze_layers(model, no_of_layers)
-		model.reg_params = init_reg_params(model, use_gpu, freeze_layers)
+		model = init_reg_params(model, use_gpu, freeze_layers)
+		
 
 	else:
 		#inititialize the reg_params for this task
-		model.reg_params = init_reg_params_across_tasks(model, use_gpu)
+		model = init_reg_params_across_tasks(model, use_gpu)
 
 	#get the optimizer
-	optimizer_sp = local_sgd(model.tmodel.parameters(), lr = 0.001)
+	optimizer_sp = local_sgd(model.tmodel.parameters(), reg_lambda, lr)
+	model = train_model(model, task_no, no_of_classes, optimizer_sp, model_criterion, dataloader, dset_size, num_epochs, use_gpu, lr, reg_lambda)
 
-	model = train_model(model, path, optimizer_sp, model_criterion, dataloader, dset_size, num_epochs, checkpoint_file, use_gpu, lr = 0.003)
-
-	if (t > 1):
+	if (task_no > 1):
 		model = consolidate_reg_params(model, use_gpu)
 
 	return model
@@ -100,17 +105,10 @@ def compute_forgetting(task_no, dataloader, dset_size):
 
 		_, preds = torch.max(outputs, 1)
 
-		loss = model_criterion(output, labels)
-		del output
-		
-		running_loss += loss.item()
-		del loss
-
 		running_corrects += torch.sum(preds == labels.data)
 		del preds
 		del labels
 
-	epoch_loss = running_loss/dset_size
 	epoch_accuracy = running_corrects.double()/dset_size
 
 	forgetting = epoch_accuracy - old_performance

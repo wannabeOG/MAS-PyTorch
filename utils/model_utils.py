@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+
 from __future__ import print_function
 
 import torch
@@ -61,7 +65,7 @@ def check_checkpoint(store_path):
 		return ["", False]
 
 	#directory exists but there is no checkpoint file
-	onlyfiles = [f for f in os.listdir(store_path) if os.path.isfile(os.join(store_path, f))]
+	onlyfiles = [f for f in os.listdir(store_path) if os.path.isfile(os.path.join(store_path, f))]
 	max_train = -1
 	flag = False
 

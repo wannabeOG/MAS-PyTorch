@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+
 from __future__ import print_function
 
 import torch
@@ -286,8 +290,8 @@ def create_freeze_layers(model, no_of_layers = 2):
 	freeze_layers = []
 
 	#get the keys for the conv layers in the model
-	for key in w_model.tmodel.features._modules:
-		if (type(w_model.tmodel.features._modules[key]) == torch.nn.modules.conv.Conv2d):
+	for key in model.tmodel.features._modules:
+		if (type(model.tmodel.features._modules[key]) == torch.nn.modules.conv.Conv2d):
 			temp_list.append(key)
 	
 	#set the requires_grad attribute to True for the layers you want to be trainable
@@ -295,16 +299,17 @@ def create_freeze_layers(model, no_of_layers = 2):
 		#pick the layers from the end
 		temp_key = temp_list[-1 * num]
 		
-		for param in model.tmodel.features[int(temp_key)]:
+		for param in model.tmodel.features[int(temp_key)].parameters():
 			param.requires_grad = True
 
 		name_1 = 'features.' + temp_key + 'weight'
 		name_2 = 'features.' + temp_key + 'bias'
 
-		freeze_layers.append(name_1, name_2)
+		freeze_layers.append(name_1)
+		freeze_layers.append(name_2)
 
 
-	return [w_model, freeze_layers]
+	return [model, freeze_layers]
 
 
 	

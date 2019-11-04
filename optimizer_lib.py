@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# coding: utf-8
+
 from __future__ import print_function
 
 import torch
@@ -14,11 +17,12 @@ import shutil
 
 
 class local_sgd(optim.SGD):
-	def __init__(self, params, lr = 0.001, momentum = 0, dampening = 0, weight_decay = 0, nesterov = False):
-		super(omega_update, self).__init__(params, lr, momentum, dampening, weight_decay, nesterov)
+	def __init__(self, params, reg_lambda, lr = 0.001, momentum = 0, dampening = 0, weight_decay = 0, nesterov = False):
+		super(local_sgd, self).__init__(params, lr, momentum, dampening, weight_decay, nesterov)
+		self.reg_lambda = reg_lambda
 
 	def __setstate__(self, state):
-		super(omega_update, self).__setstate__(state)
+		super(local_sgd, self).__setstate__(state)
 
 	def step(self, reg_params, closure = None):
 
@@ -27,8 +31,7 @@ class local_sgd(optim.SGD):
 		if closure is not None:
 			loss = closure()
 
-		reg_lambda = reg_params['lambda']
-
+		
 		for group in self.param_groups:
 			weight_decay = group['weight_decay']
 			momentum = group['momentum']
@@ -59,7 +62,7 @@ class local_sgd(optim.SGD):
 					param_diff = curr_param_value - init_val
 
 					#get the gradient for the penalty term for change in the weights of the parameters
-					local_grad = torch.mul(param_diff, 2*reg_lambda*omega)
+					local_grad = torch.mul(param_diff, 2*self.reg_lambda*omega)
 					
 					del param_diff
 					del omega
@@ -144,10 +147,10 @@ class omega_update(optim.SGD):
 class omega_vector_update(optim.SGD):
 
 	def __init__(self, params, lr = 0.001, momentum = 0, dampening = 0, weight_decay = 0, nesterov = False):
-		super(omega_update, self).__init__(params, lr, momentum, dampening, weight_decay, nesterov)
+		super(omega_vector_update, self).__init__(params, lr, momentum, dampening, weight_decay, nesterov)
 	
 	def __setstate__(self, state):
-		super(omega_update, self).__setstate__(state)
+		super(omega_vector_update, self).__setstate__(state)
 
 	def step(self, reg_params, finality, batch_index, batch_size, closure = None):
 		loss = None
