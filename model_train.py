@@ -25,17 +25,19 @@ from mas_utils import *
 from optimizer_lib import *
 
 
-def train_model(model, task_no, num_classes, optimizer, model_criterion, dataloader, dset_size, num_epochs, use_gpu = False, lr = 0.001, reg_lambda = 0.01):
+def train_model(model, task_no, num_classes, optimizer, model_criterion, dataloader_train, data_loader_test, dset_size_train, dset_size_test, num_epochs, use_gpu = False, lr = 0.001, reg_lambda = 0.01):
 	"""
 	Inputs:
 	1) model: A reference to the model that is being exposed to the data for the task
 	2) optimizer: A local_sgd optimizer object that implements the idea of MaS
 	3) model_criterion: The loss function used to train the model
-	4) dataloader: A dataloader to feed the data to the model
-	5) dset_size: Size of the dataset that belongs to a specific task
-	6) num_epochs: Number of epochs that you wish to train the model for
-	7) use_gpu: Set the flag to `True` if you wish to train on a GPU. Default value: False
-	8) lr: The initial learning rate set for training the model
+	4) dataloader_train: A dataloader to feed the training data to the model
+	5) dataloader_test: A dataloader to feed the test data to the model
+	6) dset_size_train: Size of the dataset that belongs to a specific task
+	7) dset_size_test: Size of the test dataset that belongs to a specific task
+	8) num_epochs: Number of epochs that you wish to train the model for
+	9) use_gpu: Set the flag to `True` if you wish to train on a GPU. Default value: False
+	10) lr: The initial learning rate set for training the model
 
 	Outputs:
 	1) model: Return a trained model
@@ -87,6 +89,8 @@ def train_model(model, task_no, num_classes, optimizer, model_criterion, dataloa
 
 		######################################################################################
 
+	model.tmodel.train(True)
+	model.tmodel.to(device)
 	
 	#commencing the training loop
 	for epoch in range(start_epoch, omega_epochs):			
@@ -97,6 +101,42 @@ def train_model(model, task_no, num_classes, optimizer, model_criterion, dataloa
 			optimizer_ft = omega_update(model.reg_params)
 			print ("Updating the omega values for this task")
 			model = compute_omega_grads_norm(model, dataloader, optimizer_ft)
+
+			running_loss = 0
+			running_corrects = 0
+
+			#scales the optimizer every 20 epochs 
+			optimizer = exp_lr_scheduler(optimizer, epoch, lr)
+			model.tmodel.eval()
+
+			for data in dataloader_test:
+				input_data, labels = data
+
+				del data
+
+				if (use_gpu):
+					input_data = input_data.to(device)
+					labels = labels.to(device) 
+				
+				else:
+					input_data  = Variable(input_data)
+					labels = Variable(labels)
+				
+				optimizer.zero_grad()
+				
+				output = model.tmodel(input_data)
+				del input_data
+
+				_, preds = torch.max(output, 1)
+				
+				del output
+	
+				running_corrects += torch.sum(preds == labels.data)
+				del preds
+				del labels
+
+			epoch_accuracy = running_corrects.double()/dset_size
+
 		
 		else:
 
@@ -116,7 +156,7 @@ def train_model(model, task_no, num_classes, optimizer, model_criterion, dataloa
 			model.tmodel.train(True)
 
 
-			for data in dataloader:
+			for data in dataloader_train:
 				input_data, labels = data
 
 				del data

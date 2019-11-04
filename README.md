@@ -71,7 +71,6 @@ Description of the files in this repository
 6) ``data_prep.py``: File to download the datset and split the dataset into 4 folders that are interpreted as 						 different tasks 
 7) ``utils/model_utils.py``: Utilities for training the model on the sequence of tasks
 8) ``utils/mas_utils.py``: Utilities for the optimizers that implement the idea of computing the gradients       							locally
-9) ``evaluate.py``: The file to evalute the performance of the model and compute the forgetting undergone by the 					 model on any task 
 
 Training
 ------------------------------
@@ -113,15 +112,16 @@ models
 Evaluating the model
 -------------------------------
 
-Evaluate the model by calling on the **``evalute.py``** file on some task
+The model is evaluated at the end of the training sequence
 
-This file returns the "forgetting" that the model has undergone on previous tasks whilst being trained on a sequence of tasks. For example if you call the file on the data of Task_2 after being trained on all the four tasks, it returns the performance loss of the model on Task_2 compared to the performance of the model whilst being trained on Task_2 specifically (this is read in from the ``performance.txt`` file stored in the folder specific to Task_2)
+The "forgetting" that the model has undergone on previous tasks whilst being trained on a sequence of tasks is computed and returned on the terminal. The function *compute_forgetting* reads in the previous performance from the ``performance.txt`` file stored in the folder specific to a task and compares it to the present performance of the model on that task. 
+
 
 
 To-Do's for this project
 -------------------------------------
 
--[ ] Split the [MNIST dataset][12] to create another sequence of tasks and train the model on this sequence in addition to the tasks created from the Tiny_Imagenet dataset
+-[ ] Split the [MNIST dataset][12] to create another sequence of tasks and train the model on this sequence in addition to the tasks created from the Tiny_Imagenet dataset\
 -[ ] Implement the idea of local Hebbian method (referred to in the paper as "local" method) which has not been implemented in the repository open sourced by the authors
 
 

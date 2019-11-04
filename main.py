@@ -116,14 +116,32 @@ model = shared_model(models.alexnet(pretrained = True))
 for task in range(1, no_of_tasks+1):
 	print ("Training the model on task {}".format(task))
 
-	dataloader = dloaders_train[task-1]
-	dset_size = dsets_train[task-1]
+	dataloader_train = dloaders_train[task-1]
+	dataloader_test = dloaders_test[task-1]
+	dset_size_train = dsets_train[task-1]
+	dset_size_test = dsets_test[task-1]
+
 	no_of_classes = num_classes[task-1]
 
-	mas_train(model, task, num_epochs, no_of_layers, no_of_classes, dataloader, dset_size, lr, reg_lambda, use_gpu)
+	mas_train(model, task, num_epochs, no_of_layers, no_of_classes, dataloader_train, dataloader_test, dset_size_train, dset_size_test, lr, reg_lambda, use_gpu)
 	
 
 print ("The training process on the {} tasks is completed".format(no_of_tasks))
+
+print ("Testing the model now")
+
+for task in range(1, no_of_tasks+1):
+	print ("Testing the model on task {}".format(task))
+
+	dataloader = dloaders_test[task-1]
+	dset_size = dsets_train[task-1]
+	no_of_classes = num_classes[task-1]
+
+	forgetting = compute_forgetting(task, dataloader, dset_size)
+
+	print ("The forgetting undergone on task {} is {}".format(task, forgetting))
+
+
 
 
 
