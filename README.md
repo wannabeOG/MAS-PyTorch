@@ -130,7 +130,7 @@ References
 1. **Rahaf Aljundi, Francesca Babiloni, Mohamed Elhoseiny, Marcus Rohrbach, Tinne Tuytelaars** _Memory Aware Synapses: Learning what (not) to forget_ ECCV 2018. [[arxiv][10]]
 2. **James Kirkpatrick, Razvan Pascanu, Neil Rabinowitz, Joel Veness, Guillaume Desjardins, Andrei A. Rusu, Kieran Milan, John Quan, Tiago Ramalho, Agnieszka Grabska-Barwinska, Demis Hassabis, Claudia Clopath, Dharshan Kumaran, Raia Hadsell** _Overcoming catastrophic forgetting in neural networks_ ICCV 2017 [[arxiv][3]]
 3. **Rahaf Aljundi, Min Lin, Baptiste Goujaud, Yoshua Bengio** _Gradient based sample selection for online continual learning_ NeurIPS 2019 [[arxiv][1]]
-3. **D.Hebb** _The Organization of behviour_ [[arxiv][2]]
+3. **D.Hebb** _The Organization of behviour_ [[Book][2]]
 4. PyTorch Docs. [[http://pytorch.org/docs/master](http://pytorch.org/docs/master)]
 
 This repository owes a huge credit to the authors of the original [implementation][8]. This code repository could only be built due to the help offered by countless people on Stack Overflow and PyTorch Discus blogs

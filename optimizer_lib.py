@@ -102,7 +102,7 @@ class omega_update(optim.SGD):
 	def __setstate__(self, state):
 		super(omega_update, self).__setstate__(state)
 
-	def step(self, reg_params, batch_index, batch_size, closure = None):
+	def step(self, reg_params, batch_index, batch_size, use_gpu, closure = None):
 		loss = None
 
 		if closure is not None:
@@ -128,8 +128,8 @@ class omega_update(optim.SGD):
 					
 					param_dict = reg_params[p]
 
-					omega = reg_param['omega']
-					omega = omega.to(device)
+					omega = param_dict['omega']
+					omega = omega.to(torch.device("cuda:0" if use_gpu else "cpu"))
 
 					current_size = (batch_index+1)*batch_size
 					step_size = 1/float(current_size)
@@ -152,7 +152,7 @@ class omega_vector_update(optim.SGD):
 	def __setstate__(self, state):
 		super(omega_vector_update, self).__setstate__(state)
 
-	def step(self, reg_params, finality, batch_index, batch_size, closure = None):
+	def step(self, reg_params, finality, batch_index, batch_size, use_gpu, closure = None):
 		loss = None
 
 		device = torch.device("cuda:0" if use_gpu else "cpu")

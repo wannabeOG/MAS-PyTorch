@@ -134,7 +134,7 @@ for task in range(1, no_of_tasks+1):
 	print ("Testing the model on task {}".format(task))
 
 	dataloader = dloaders_test[task-1]
-	dset_size = dsets_train[task-1]
+	dset_size = dsets_test[task-1]
 	no_of_classes = num_classes[task-1]
 
 	forgetting = compute_forgetting(task, dataloader, dset_size)

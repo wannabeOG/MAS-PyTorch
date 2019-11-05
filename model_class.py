@@ -38,8 +38,8 @@ class classification_head(nn.Module):
 	"""
 	
 	def __init__(self, in_features, out_features):
-		super(Classification_head, self).__init__()
-		self.fc1 = nn.Linear(in_features, out_features)
+		super(classification_head, self).__init__()
+		self.fc = nn.Linear(in_features, out_features)
 
 	def forward(self, x):
 		return x

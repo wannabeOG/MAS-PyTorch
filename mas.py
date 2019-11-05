@@ -59,7 +59,7 @@ def mas_train(model, task_no, num_epochs, no_of_layers, no_of_classes, dataloade
 
 	#get the optimizer
 	optimizer_sp = local_sgd(model.tmodel.parameters(), reg_lambda, lr)
-	model = train_model(model, task_no, no_of_classes, optimizer_sp, model_criterion, dataloader_train, dataloader_train, dset_size_train, dset_size_test, num_epochs, use_gpu, lr, reg_lambda)
+	model = train_model(model, task_no, no_of_classes, optimizer_sp, model_criterion, dataloader_train, dataloader_test, dset_size_train, dset_size_test, num_epochs, use_gpu, lr, reg_lambda)
 
 	if (task_no > 1):
 		model = consolidate_reg_params(model, use_gpu)
@@ -105,7 +105,7 @@ def compute_forgetting(task_no, dataloader, dset_size):
 		output = model.tmodel(input_data)
 		del input_data
 
-		_, preds = torch.max(outputs, 1)
+		_, preds = torch.max(output, 1)
 
 		running_corrects += torch.sum(preds == labels.data)
 		del preds

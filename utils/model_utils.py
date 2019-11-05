@@ -16,6 +16,12 @@ import copy
 import os
 import shutil
 
+import sys
+sys.path.append('../')
+
+from model_class import *
+
+
 def exp_lr_scheduler(optimizer, epoch, init_lr=0.0008, lr_decay_epoch=20):
 	"""
 	Decay learning rate by a factor of 0.1 every lr_decay_epoch epochs.
@@ -43,8 +49,7 @@ def model_criterion(preds, labels):
 	return loss(preds, labels)
 
 
-
-def check_checkpoint(store_path):
+def check_checkpoints(store_path):
 	
 	"""
 	Inputs
@@ -86,6 +91,7 @@ def check_checkpoint(store_path):
 
 
 
+
 def create_task_dir(task_no, no_of_classes, store_path):
 	"""
 	Inputs
@@ -109,7 +115,9 @@ def create_task_dir(task_no, no_of_classes, store_path):
 	return 
 
 
+
 def model_inference(task_no, use_gpu = False):
+	
 	"""
 	Inputs
 	1) task_no: The task number for which the model is being evaluated
@@ -123,28 +131,32 @@ def model_inference(task_no, use_gpu = False):
 
 	"""
 
-	#all models are derived from an alexnet architecture
+	#all models are derived from the Alexnet architecture
 	pre_model = models.alexnet(pretrained = True)
 	model = shared_model(pre_model)
 
 	path_to_model = os.path.join(os.getcwd(), "models")
-
-	#load the trained shared model
-	model.load_state_dict(torch.load(os.join.path(path_to_model, "shared_model.pth")))
 
 	path_to_head = os.path.join(os.getcwd(), "models", "Task_" + str(task_no))
 	
 	#get the number of classes by reading from the text file created during initialization for this task
 	file_name = os.path.join(path_to_head, "classes.txt") 
 	file_object = open(file_name, 'r')
+	num_classes = file_object.read()
 	file_object.close()
 	
 	num_classes = int(num_classes)
-	in_features = model.tmodel.classfier[-1].in_features
+	#print (num_classes)
+	in_features = model.tmodel.classifier[-1].in_features
 	
+	model.tmodel.classifier[-1] = nn.Linear(in_features, num_classes)
+
 	#load the classifier head for the given task identified by the task number
 	classifier = classification_head(in_features, num_classes)
 	classifier.load_state_dict(torch.load(os.path.join(path_to_head, "head.pth")))
+
+	#load the trained shared model
+	model.load_state_dict(torch.load(os.path.join(path_to_model, "shared_model.pth")))
 
 	#change the weights layers to the classifier head weights
 	model.tmodel.classifier[-1].weight.data = classifier.fc.weight.data
@@ -190,13 +202,12 @@ def model_init(no_classes, use_gpu = False):
 
 
 
-def save_model(model, task_no, no_of_classes, epoch_accuracy):
+def save_model(model, task_no, epoch_accuracy):
 	"""
 	Inputs
 	1) model: A reference to the model that needs to be saved
 	2) task_no: The task number identifies the task for which the model is to be saved
-	3) no_of_classes: The number of classes that 
-	4) epoch_accuracy: Save the performance of the model on the task 
+	3) epoch_accuracy: Save the performance of the model on the task 
 
 	Function: Saves a reference for the classification head and the shared model at the 
 	appropriate locations
@@ -208,19 +219,19 @@ def save_model(model, task_no, no_of_classes, epoch_accuracy):
 	path_to_head = os.path.join(path_to_model, "Task_" + str(task_no))
 
 	#get the features of the classification head
-	in_features = model.classifier[-1].in_features 
-	out_features = model.classifier[-1].out_features
+	in_features = model.tmodel.classifier[-1].in_features 
+	out_features = model.tmodel.classifier[-1].out_features
 
 	#seperate out the classification head from the model
 	ref = classification_head(in_features, out_features)
-	ref.fc1.weight.data = model.classifier[-1].weight.data
-	ref.fc1.bias.data = model.classifier[-1].bias.data
+	ref.fc.weight.data = model.tmodel.classifier[-1].weight.data
+	ref.fc.bias.data = model.tmodel.classifier[-1].bias.data
 
 	#save the model at the specified location
 	torch.save(model.state_dict(), os.path.join(path_to_model, "shared_model.pth"))
 
 	#save the classification head at the task directory
-	torch.save(ref.state_dict(), os.path.join(path_to_head), "head.pth")
+	torch.save(ref.state_dict(), os.path.join(path_to_head, "head.pth"))
 
 	
 	#save the performance of the model on the task to later determine the forgetting metric

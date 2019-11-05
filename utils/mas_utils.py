@@ -16,19 +16,26 @@ import copy
 import os
 import shutil
 
+import sys
+
 
 def init_reg_params(model, use_gpu, freeze_layers = []):
 	"""
 	Input:
 	1) model: A reference to the model that is being trained
-	2) freeze_layers: A layer which 
+	2) use_gpu: Set the flag to True if the model is to be trained on the GPU
+	3) freeze_layers: A list containing the layers for which omega is not calculated. Useful in the
+		case of computational limitations where computing the importance parameters for the entire model
+		is not feasible
 
 	Output:
-	1) reg_params: A dictionary containing importance weights (omega), init_val (keep a reference 
-	to the initial values of the parameters) for all trainable parameters
+	1) model: A dictionary containing importance weights (omega), init_val (keep a reference 
+	to the initial values of the parameters) for all trainable parameters is calculated and the updated
+	model with these reg_params is returned.
 
 
-	Function:
+	Function: Initializes the reg_params for a model for the initial task (task = 1)	
+	
 	"""
 	device = torch.device("cuda:0" if use_gpu else "cpu")
 
@@ -60,13 +67,18 @@ def init_reg_params_across_tasks(model, use_gpu, freeze_layers = []):
 	"""
 	Input:
 	1) model: A reference to the model that is being trained
+	2) use_gpu: Set the flag to True if the model is to be trained on the GPU
+	3) freeze_layers: A list containing the layers for which omega is not calculated. Useful in the
+		case of computational limitations where computing the importance parameters for the entire model
+		is not feasible
 
 	Output:
-	1) reg_params: A dictionary containing importance weights (omega), init_val (keep a reference 
-	to the initial values of the parameters) for all trainable parameters
+	1) model: A dictionary containing importance weights (omega), init_val (keep a reference 
+	to the initial values of the parameters) for all trainable parameters is calculated and the updated
+	model with these reg_params is returned.
 
 
-	Function:
+	Function: Initializes the reg_params for a model for other tasks in the sequence (task != 1)	
 	"""
 
 	#Get the reg_params for the model 
@@ -110,15 +122,17 @@ def consolidate_reg_params(model, use_gpu):
 	"""
 	Input:
 	1) model: A reference to the model that is being trained
+	2) use_gpu: Set the flag to True if you wish to train the model on a GPU
 
 	Output:
 	1) reg_params: A dictionary containing importance weights (omega), init_val (keep a reference 
 	to the initial values of the parameters) for all trainable parameters
 
 
-	Function:
+	Function: This function updates the value (adds the value) of omega across the tasks that the model is 
+	exposed to
+	
 	"""
-
 	#Get the reg_params for the model 
 	reg_params = model.reg_params
 
@@ -144,17 +158,26 @@ def consolidate_reg_params(model, use_gpu):
 	return model
 
 
-def compute_omega_grads_norm(model, dataloader, optimizer):
+def compute_omega_grads_norm(model, dataloader, optimizer, use_gpu):
 	"""
-	global version for computing the l2 norm of the function (neural network's) outputs
-	This function also fills up the parameter values
-	"""
+	Inputs:
+	1) model: A reference to the model for which omega is to be calculated
+	2) dataloader: A dataloader to feed the data to the model
+	3) optimizer: An instance of the "omega_update" class
+	4) use_gpu: Flag is set to True if the model is to be trained on the GPU
+
+	Outputs:
+	1) model: An updated reference to the model is returned
+
+	Function: Global version for computing the l2 norm of the function (neural network's) outputs. In 
+	addition to this, the function also accumulates the values of omega across the items of a task
 	
+	"""
 	#Alexnet object
 	model.tmodel.eval()
 
 	index = 0
-	for data in dataloader['train']:
+	for data in dataloader:
 		
 		#get the inputs and labels
 		inputs, labels = data
@@ -175,15 +198,16 @@ def compute_omega_grads_norm(model, dataloader, optimizer):
 		del outputs
 
 		squared_l2_norm = l2_norm**2
-		del squared_l2_norm
+		del l2_norm
 		
 		sum_norm = torch.sum(squared_l2_norm)
-		
+		del squared_l2_norm
+
 		#compute gradients for these parameters
 		sum_norm.backward()
 
 		#optimizer.step computes the omega values for the new batches of data
-		optimizer.step(model.reg_params, index, labels.size(0))
+		optimizer.step(model.reg_params, index, labels.size(0), use_gpu)
 		del labels
 		
 		index = index + 1
@@ -192,9 +216,21 @@ def compute_omega_grads_norm(model, dataloader, optimizer):
 
 
 #need a different function for grads vector
-def compute_omega_grads_vector(model, dataloader, optimizer):
+def compute_omega_grads_vector(model, dataloader, optimizer, use_gpu):
 	"""
-	global version for computing
+	Inputs:
+	1) model: A reference to the model for which omega is to be calculated
+	2) dataloader: A dataloader to feed the data to the model
+	3) optimizer: An instance of the "omega_update" class
+	4) use_gpu: Flag is set to True if the model is to be trained on the GPU
+
+	Outputs:
+	1) model: An updated reference to the model is returned
+
+	Function: This function backpropagates across the dimensions of the  function (neural network's) 
+	outputs. In addition to this, the function also accumulates the values of omega across the items 
+	of a task. Refer to section 4.1 of the paper for more details regarding this idea
+	
 	"""
 
 	#Alexnet object
@@ -230,13 +266,13 @@ def compute_omega_grads_vector(model, dataloader, optimizer):
 					#This retains the computational graph for further computations 
 					targets.backward(retain_graph = True)
 
-				optimizer.step(model.reg_params, False, index, labels.size(0))
+				optimizer.step(model.reg_params, False, index, labels.size(0), use_gpu)
 				
 				#necessary to compute the correct gradients for each batch of data
 				optimizer.zero_grad()
 
 			
-			optimizer.step(model.reg_params, True, index, labels.size(0))
+			optimizer.step(model.reg_params, True, index, labels.size(0), use_gpu)
 			index = index + 1
 
 	return model
@@ -268,7 +304,9 @@ def create_freeze_layers(model, no_of_layers = 2):
 		Alexnet model. Default value is 2 
 
 	Outputs
-	1) freeze_layers: Creates a list of layers that will not be involved in the training process
+	1) model: An updated reference to the model with the requires_grad attribute of the 
+			  parameters of the freeze_layers set to False 
+	2) freeze_layers: Creates a list of layers that will not be involved in the training process
 
 	Function: This function creates the freeze_layers list which is then passed to the `compute_omega_grads_norm`
 	function which then checks the list to see if the omegas need to be calculated for the parameters of these layers  
@@ -310,11 +348,3 @@ def create_freeze_layers(model, no_of_layers = 2):
 
 
 	return [model, freeze_layers]
-
-
-	
-
-
-
-
-

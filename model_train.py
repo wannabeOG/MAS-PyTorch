@@ -10,6 +10,7 @@ import torch.optim as optim
 import numpy as np
 import torchvision
 from torchvision import datasets, models, transforms
+from torch.autograd import Variable
 
 import copy
 import os
@@ -18,14 +19,14 @@ import shutil
 import sys
 import time
 
-sys.path.append('../utils')
-
+sys.path.append('./utils')
 from model_utils import *
 from mas_utils import *
+
 from optimizer_lib import *
 
 
-def train_model(model, task_no, num_classes, optimizer, model_criterion, dataloader_train, data_loader_test, dset_size_train, dset_size_test, num_epochs, use_gpu = False, lr = 0.001, reg_lambda = 0.01):
+def train_model(model, task_no, num_classes, optimizer, model_criterion, dataloader_train, dataloader_test, dset_size_train, dset_size_test, num_epochs, use_gpu = False, lr = 0.001, reg_lambda = 0.01):
 	"""
 	Inputs:
 	1) model: A reference to the model that is being exposed to the data for the task
@@ -57,7 +58,7 @@ def train_model(model, task_no, num_classes, optimizer, model_criterion, dataloa
 		os.mkdir(model_path)
 
 	#the flag indicates that the the directory exists
-	checkpoint_file, flag = check_checkpoint(store_path)
+	checkpoint_file, flag = check_checkpoints(store_path)
 
 	if (flag == False):
 		#create a task directory where the checkpoint files and the classification head will be stored
@@ -100,13 +101,11 @@ def train_model(model, task_no, num_classes, optimizer, model_criterion, dataloa
 			#no training of the model takes place in this epoch
 			optimizer_ft = omega_update(model.reg_params)
 			print ("Updating the omega values for this task")
-			model = compute_omega_grads_norm(model, dataloader, optimizer_ft)
+			model = compute_omega_grads_norm(model, dataloader_train, optimizer_ft, use_gpu)
 
 			running_loss = 0
 			running_corrects = 0
 
-			#scales the optimizer every 20 epochs 
-			optimizer = exp_lr_scheduler(optimizer, epoch, lr)
 			model.tmodel.eval()
 
 			for data in dataloader_test:
@@ -119,10 +118,10 @@ def train_model(model, task_no, num_classes, optimizer, model_criterion, dataloa
 					labels = labels.to(device) 
 				
 				else:
-					input_data  = Variable(input_data)
+					input_data  =  input_data
 					labels = Variable(labels)
 				
-				optimizer.zero_grad()
+				#optimizer.zero_grad()
 				
 				output = model.tmodel(input_data)
 				del input_data
@@ -135,7 +134,7 @@ def train_model(model, task_no, num_classes, optimizer, model_criterion, dataloa
 				del preds
 				del labels
 
-			epoch_accuracy = running_corrects.double()/dset_size
+			epoch_accuracy = running_corrects.double()/dset_size_test
 
 		
 		else:
@@ -191,11 +190,12 @@ def train_model(model, task_no, num_classes, optimizer, model_criterion, dataloa
 				del preds
 				del labels
 
-			epoch_loss = running_loss/dset_size
-			epoch_accuracy = running_corrects.double()/dset_size
+			epoch_loss = running_loss/dset_size_train
+			epoch_accuracy = running_corrects.double()/dset_size_train
 
 
 			print('Loss: {:.4f} Acc: {:.4f}'.format(epoch_loss, epoch_accuracy))
+			print()
 			
 			#avoid saving a file twice
 			if(epoch != 0 and epoch != num_epochs -1 and (epoch+1) % 10 == 0):
@@ -211,4 +211,4 @@ def train_model(model, task_no, num_classes, optimizer, model_criterion, dataloa
 
 
 	#save the model and the performance 
-	save_model(model, task_no, no_of_classes, epoch_accuracy)
+	save_model(model, task_no, epoch_accuracy)
