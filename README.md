@@ -92,7 +92,7 @@ The file takes the following arguments
 
 Once you invoke the **`main.py`** module with the appropriate arguments, the following things shall happen
 
-When the model fininshes being trained on a task, the last classification layer of the model (referred to as a classification head) is stored in a folder that is created for that specific task. This model stores the class specific features that are not shared across tasks. This folder also contains two text files **`performance.txt`** and **`classes.txt`**. The former records the performances of the model on the test sets, which is then used to compute the forgetting undergone by the model when the model is tested on the same task at the end of the training sequence. The latter records the information regarding the number of classes that the model was exposed to whilst being trained on that particular task. The rest of the model (referred to as shared_features) will be stored in the common folder to all the models as **`shared_model.pth`**. The reg_params associated with this model will be stored as a pickled file named as **`reg_params.pickle`**.\
+When the model fininshes being trained on a task, the last classification layer of the model (referred to as a classification head) is stored in a folder that is created for that specific task. This model stores the class specific features that are not shared across tasks. This folder also contains two text files **`performance.txt`** and **`classes.txt`**. The former records the performances of the model on the test sets, which is then used to compute the forgetting undergone by the model when the model is tested on the same task at the end of the training sequence. The latter records the information regarding the number of classes that the model was exposed to whilst being trained on that particular task. The rest of the model (referred to as shared_features) will be stored in the common folder to all the models as **`shared_model.pth`**. The reg_params associated with this model will be stored as a pickled file named as **`reg_params.pickle`**.
 
 
 The directory structure at the end of the training procedure, would resemble the following tree:
@@ -112,7 +112,7 @@ models
 └── Task_4
 ```
 
-``head.pth.tar`` is the model file
+``head.pth`` is the model file
 
 
 Evaluating the model
