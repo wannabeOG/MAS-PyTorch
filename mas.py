@@ -19,7 +19,7 @@ import shutil
 import sys
 import time
 
-sys.path.append('utils')
+sys.path.append('./utils')
 from model_utils import *
 from mas_utils import *
 
@@ -51,7 +51,6 @@ def mas_train(model, task_no, num_epochs, no_of_layers, no_of_classes, dataloade
 		#initialize the reg_params for this task
 		model, freeze_layers = create_freeze_layers(model, no_of_layers)
 		model = init_reg_params(model, use_gpu, freeze_layers)
-		
 
 	else:
 		#inititialize the reg_params for this task
@@ -59,16 +58,17 @@ def mas_train(model, task_no, num_epochs, no_of_layers, no_of_classes, dataloade
 
 	#get the optimizer
 	optimizer_sp = local_sgd(model.tmodel.parameters(), reg_lambda, lr)
-	model = train_model(model, task_no, no_of_classes, optimizer_sp, model_criterion, dataloader_train, dataloader_test, dset_size_train, dset_size_test, num_epochs, use_gpu, lr, reg_lambda)
+	train_model(model, task_no, no_of_classes, optimizer_sp, model_criterion, dataloader_train, dataloader_test, dset_size_train, dset_size_test, num_epochs, use_gpu, lr, reg_lambda)
 
 	if (task_no > 1):
+
 		model = consolidate_reg_params(model, use_gpu)
 
 	return model
 
 
 
-def compute_forgetting(task_no, dataloader, dset_size):
+def compute_forgetting(task_no, dataloader, dset_size, use_gpu):
 	"""
 	Inputs
 	1) task_no: The task number on which you want to compute the forgetting 
@@ -83,15 +83,21 @@ def compute_forgetting(task_no, dataloader, dset_size):
 	#get the results file
 	store_path = os.path.join(os.getcwd(), "models", "Task_" + str(task_no))
 	model_path = os.path.join(os.getcwd(), "models")
+	device = torch.device("cuda:0" if use_gpu else "cpu")
 
+	#get the old performance
 	file_object = open(os.path.join(store_path, "performance.txt"), 'r')
 	old_performance = file_object.read()
 	file_object.close()
 
+	#load the model for inference
 	model = model_inference(task_no, use_gpu = False)
+	model.to(device)
+
+	running_corrects = 0
 
 	for data in dataloader:
-		inputs, labels = data
+		input_data, labels = data
 		del data
 
 		if (use_gpu):
@@ -113,6 +119,7 @@ def compute_forgetting(task_no, dataloader, dset_size):
 
 	epoch_accuracy = running_corrects.double()/dset_size
 
-	forgetting = epoch_accuracy - old_performance
+	old_performance = float(old_performance) 
+	forgetting = epoch_accuracy.item() - old_performance
 
 	return forgetting
