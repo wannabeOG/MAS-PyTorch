@@ -15,6 +15,7 @@ from torchvision import datasets, models, transforms
 import copy
 import os
 import shutil
+import pickle
 
 import sys
 sys.path.append('../')
@@ -149,8 +150,7 @@ def model_inference(task_no, use_gpu = False):
 	#print (num_classes)
 	in_features = model.tmodel.classifier[-1].in_features
 	
-	model.tmodel.classifier[-1] = nn.Linear(in_features, num_classes)
-
+	del model.tmodel.classifier[-1]
 	#load the classifier head for the given task identified by the task number
 	classifier = classification_head(in_features, num_classes)
 	classifier.load_state_dict(torch.load(os.path.join(path_to_head, "head.pth")))
@@ -158,13 +158,15 @@ def model_inference(task_no, use_gpu = False):
 	#load the trained shared model
 	model.load_state_dict(torch.load(os.path.join(path_to_model, "shared_model.pth")))
 
+	model.tmodel.classifier.add_module('6', nn.Linear(in_features, num_classes))
+
 	#change the weights layers to the classifier head weights
 	model.tmodel.classifier[-1].weight.data = classifier.fc.weight.data
 	model.tmodel.classifier[-1].bias.data = classifier.fc.bias.data
 
-	device = torch.device("cuda:0" if use_gpu else "cpu")
+	#device = torch.device("cuda:0" if use_gpu else "cpu")
 	model.eval()
-	model.to(device)
+	#model.to(device)
 	
 	return model
 
@@ -185,14 +187,29 @@ def model_init(no_classes, use_gpu = False):
 	"""
 
 	path = os.path.join(os.getcwd(), "models", "shared_model.pth")
+	path_to_reg = os.path.join(os.getcwd(), "models", "reg_params.pickle")
+
 	pre_model = models.alexnet(pretrained = True)
 	model = shared_model(pre_model)
 
+	#initialize a new classification head
+	in_features = model.tmodel.classifier[-1].in_features
+
+	del model.tmodel.classifier[-1]
+
+	#load the model
 	if os.path.isfile(path):
 		model.load_state_dict(torch.load(path))
 
-	#initialize a new classification head
-	model.tmodel.classifier[-1] = nn.Linear(model.tmodel.classifier[-1].in_features, dset_classes)
+	#add the last classfication head to the shared model
+	model.tmodel.classifier.add_module('6', nn.Linear(in_features, no_classes))
+
+	#load the reg_params stored
+	if os.path.isfile(path_to_reg):
+		with open(path_to_reg, 'rb') as handle:
+			reg_params = pickle.load(handle)
+
+		model.reg_params = reg_params
 
 	device = torch.device("cuda:0" if use_gpu else "cpu")
 	model.train(True)
@@ -227,6 +244,16 @@ def save_model(model, task_no, epoch_accuracy):
 	ref.fc.weight.data = model.tmodel.classifier[-1].weight.data
 	ref.fc.bias.data = model.tmodel.classifier[-1].bias.data
 
+	#save the reg_params
+	reg_params = model.reg_params
+
+	f = open(os.path.join(os.getcwd(), "models", "reg_params.pickle"), 'wb')
+	pickle.dump(reg_params, f)
+	f.close()
+
+	#save tge model
+	del model.tmodel.classifier[-1]
+
 	#save the model at the specified location
 	torch.save(model.state_dict(), os.path.join(path_to_model, "shared_model.pth"))
 
@@ -236,7 +263,7 @@ def save_model(model, task_no, epoch_accuracy):
 	
 	#save the performance of the model on the task to later determine the forgetting metric
 	with open(os.path.join(path_to_head, "performance.txt"), 'w') as file1:
-		input_to_txtfile = str(epoch_accuracy)
+		input_to_txtfile = str(epoch_accuracy.item())
 		file1.write(input_to_txtfile)
 		file1.close()
 
