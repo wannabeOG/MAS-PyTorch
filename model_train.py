@@ -43,7 +43,7 @@ def train_model(model, task_no, num_classes, optimizer, model_criterion, dataloa
 	Outputs:
 	1) model: Return a trained model
 
-	Function: Trains the model on a specific task identified by a task number
+	Function: Trains the model on a specific task identified by a task number and saves this model
 	
 	"""
 	omega_epochs = num_epochs + 1
@@ -58,8 +58,9 @@ def train_model(model, task_no, num_classes, optimizer, model_criterion, dataloa
 		os.mkdir(model_path)
 
 	#the flag indicates that the the directory exists
-	checkpoint_file, flag = check_checkpoints(store_path)
+	#checkpoint_file, flag = check_checkpoints(store_path)
 
+	flag = False
 	if (flag == False):
 		#create a task directory where the checkpoint files and the classification head will be stored
 		create_task_dir(task_no, num_classes, store_path)
@@ -79,7 +80,7 @@ def train_model(model, task_no, num_classes, optimizer, model_criterion, dataloa
 			start_epoch = checkpoint['epoch']
 			
 			print ("Loading the model")
-			model = shared_model(models.alexnet(pretrained = True))
+			model = model_init(number_of_classes, use_gpu)
 			model = model.load_state_dict(checkpoint['state_dict'])
 			
 			print ("Loading the optimizer")

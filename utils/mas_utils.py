@@ -91,27 +91,28 @@ def init_reg_params_across_tasks(model, use_gpu, freeze_layers = []):
 		
 		if not name in freeze_layers:
 
-			param_dict = reg_params[param]
-			print ("Initializing the omega values for layer for the new task", name)
-			
-			#Store the previous values of omega
-			prev_omega = param_dict['omega']
-			
-			#Initialize a new omega
-			new_omega = torch.zeros(param.size())
-			new_omega = new_omega.to(device)
+			if param in reg_params:
+				param_dict = reg_params[param]
+				print ("Initializing the omega values for layer for the new task", name)
+				
+				#Store the previous values of omega
+				prev_omega = param_dict['omega']
+				
+				#Initialize a new omega
+				new_omega = torch.zeros(param.size())
+				new_omega = new_omega.to(device)
 
-			init_val = param.data.clone()
-			init_val = init_val.to(device)
+				init_val = param.data.clone()
+				init_val = init_val.to(device)
 
-			param_dict['prev_omega'] = prev_omega
-			param_dict['omega'] = new_omega
+				param_dict['prev_omega'] = prev_omega
+				param_dict['omega'] = new_omega
 
-			#store the initial values of the parameters
-			param_dict['init_val'] = init_val
+				#store the initial values of the parameters
+				param_dict['init_val'] = init_val
 
-			#the key for this dictionary is the name of the layer
-			reg_params[param] =  param_dict
+				#the key for this dictionary is the name of the layer
+				reg_params[param] =  param_dict
 
 	model.reg_params = reg_params
 
@@ -137,21 +138,21 @@ def consolidate_reg_params(model, use_gpu):
 	reg_params = model.reg_params
 
 	for name, param in model.tmodel.named_parameters():
-		
-		param_dict = reg_params[name]
-		print ("Consolidating the omega values for layer", name)
-		
-		#Store the previous values of omega
-		prev_omega = param_dict['prev_omega']
-		new_omega = param_dict['omega']
+		if param in reg_params:
+			param_dict = reg_params[param]
+			print ("Consolidating the omega values for layer", name)
+			
+			#Store the previous values of omega
+			prev_omega = param_dict['prev_omega']
+			new_omega = param_dict['omega']
 
-		new_omega = torch.add(prev_omega, new_omega)
-		del param_dict['prev_omega']
-		
-		param_dict['omega'] = new_omega
+			new_omega = torch.add(prev_omega, new_omega)
+			del param_dict['prev_omega']
+			
+			param_dict['omega'] = new_omega
 
-		#the key for this dictionary is the name of the layer
-		reg_params[param] = param_dict
+			#the key for this dictionary is the name of the layer
+			reg_params[param] = param_dict
 
 	model.reg_params = reg_params
 
@@ -332,16 +333,18 @@ def create_freeze_layers(model, no_of_layers = 2):
 		if (type(model.tmodel.features._modules[key]) == torch.nn.modules.conv.Conv2d):
 			temp_list.append(key)
 	
+	num_of_frozen_layers = len(temp_list) - no_of_layers
+
 	#set the requires_grad attribute to True for the layers you want to be trainable
-	for num in range(1, no_of_layers + 1):
+	for num in range(0, num_of_frozen_layers):
 		#pick the layers from the end
-		temp_key = temp_list[-1 * num]
+		temp_key = temp_list[num]
 		
 		for param in model.tmodel.features[int(temp_key)].parameters():
 			param.requires_grad = True
 
-		name_1 = 'features.' + temp_key + 'weight'
-		name_2 = 'features.' + temp_key + 'bias'
+		name_1 = 'features.' + temp_key + '.weight'
+		name_2 = 'features.' + temp_key + '.bias'
 
 		freeze_layers.append(name_1)
 		freeze_layers.append(name_2)
