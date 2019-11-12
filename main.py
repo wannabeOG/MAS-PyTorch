@@ -107,7 +107,7 @@ for tdir in sorted(os.listdir(data_dir)):
 	dsets_test.append(temp2)
 
 
-
+#get the number of tasks in the sequence
 no_of_tasks = len(dloaders_train)
 
 model = shared_model(models.alexnet(pretrained = True))
@@ -123,6 +123,8 @@ for task in range(1, no_of_tasks+1):
 
 	no_of_classes = num_classes[task-1]
 
+	model = model_init(no_of_classes, use_gpu)
+
 	mas_train(model, task, num_epochs, no_of_layers, no_of_classes, dataloader_train, dataloader_test, dset_size_train, dset_size_test, lr, reg_lambda, use_gpu)
 	
 
@@ -130,6 +132,7 @@ print ("The training process on the {} tasks is completed".format(no_of_tasks))
 
 print ("Testing the model now")
 
+#test the model out on the test sets of the tasks
 for task in range(1, no_of_tasks+1):
 	print ("Testing the model on task {}".format(task))
 
@@ -137,7 +140,7 @@ for task in range(1, no_of_tasks+1):
 	dset_size = dsets_test[task-1]
 	no_of_classes = num_classes[task-1]
 
-	forgetting = compute_forgetting(task, dataloader, dset_size)
+	forgetting = compute_forgetting(task, dataloader, dset_size, use_gpu)
 
 	print ("The forgetting undergone on task {} is {}".format(task, forgetting))
 
