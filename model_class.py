@@ -5,24 +5,11 @@ from __future__ import print_function
 
 import torch
 import torch.nn as nn
-import torch.optim as optim
-
-import numpy as np
 import torchvision
 from torchvision import datasets, models, transforms
 
-import copy
 import os
 import shutil
-
-import sys
-
-sys.path.append('utils')
-from model_utils import *
-from mas_utils import *
-
-from optimizer_lib import *
-from model_train import *
 
 #The idea is to have classification layers for different tasks
 
@@ -52,6 +39,6 @@ class shared_model(nn.Module):
 		self.tmodel = models.alexnet(pretrained = True)
 		self.reg_params = {}
 
-	def forward(x):
-		x = self.tmodel(x)
-		return x
+	def forward(self, x):
+		return self.tmodel(x)
+		
