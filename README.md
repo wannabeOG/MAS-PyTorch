@@ -44,8 +44,8 @@ Requisites
 * Python 3.6
 
 
-Datasets and Designing the experiments
--------------------------------------------
+<a name="someid"></a> Datasets and Designing the experiments
+----------------------------------------------------------------
 
 The original paper uses [Caltech-UCSD Birds][5], [MIT Scenes][6] and [Oxford Flowers][7]. Compuatational and hardware limitations necessitated the design of experiments such that the smaller versions of these standard datasets were used. However this was complicated by the two major reasons:
 
@@ -92,18 +92,24 @@ The file takes the following arguments
 
 Once you invoke the **`main.py`** module with the appropriate arguments, the following things shall happen
 
-When the model fininshes being trained on a task, the last classification layer of the model (referred to as a classification head) is stored in a folder that is created for that specific task. This model stores the class specific features that are not shared across tasks. This folder also contains two text files **`performance.txt`** and **`classes.txt`**. The former records the performances of the model on the test sets, which is then used to compute the forgetting undergone by the model when the model is tested on the same task at the end of the training sequence. The latter records the information regarding the number of classes that the model was exposed to whilst being trained on that particular task. The rest of the model (referred to as shared_features) will be stored in the common folder to all the models. The directory structure at the end of the training procedure, would resemble the following tree:
+When the model fininshes being trained on a task, the last classification layer of the model (referred to as a classification head) is stored in a folder that is created for that specific task. This model stores the class specific features that are not shared across tasks. This folder also contains two text files **`performance.txt`** and **`classes.txt`**. The former records the performances of the model on the test sets, which is then used to compute the forgetting undergone by the model when the model is tested on the same task at the end of the training sequence. The latter records the information regarding the number of classes that the model was exposed to whilst being trained on that particular task. The rest of the model (referred to as shared_features) will be stored in the common folder to all the models as **`shared_model.pth`**. The reg_params associated with this model will be stored as a pickled file named as **`reg_params.pickle`**.\
+
+
+The directory structure at the end of the training procedure, would resemble the following tree:
 
 ```
 models
+├── reg_params.pickle
+├── shared_model.pth
 ├── Task_1
 │   ├── classes.txt
-│   ├── head.pth.tar
-│   └── performace.txt
+│   ├── head.pth
+│   └── performance.txt
 ├── Task_2
+│  
 ├── Task_3
+│   
 └── Task_4
-
 ```
 
 ``head.pth.tar`` is the model file
@@ -115,6 +121,21 @@ Evaluating the model
 The model is evaluated at the end of the training sequence
 
 The "forgetting" that the model has undergone on previous tasks whilst being trained on a sequence of tasks is computed and returned on the terminal. The function *compute_forgetting* reads in the previous performance from the ``performance.txt`` file stored in the folder specific to a task and compares it to the present performance of the model on that task. 
+
+
+Results
+-------------------------------
+This paper is tested out on the tasks detailed in this [section][13]. Please note that the number of classes in each task have been halved to reduce experimentation time and the results obtained have been reported for this setting. All the models have been trained with the default values for the arguments taken by the **`main.py`**
+module. 
+
+| Task Number    | Forgetting (in %)|
+| :------------: | :----------:     | 
+|       1        |       10.2       |    
+|       2        |       7.6        |    
+|       3        |       4.1        |    
+|       4        |       0          |    
+
+
 
 
 
@@ -153,5 +174,6 @@ BSD
 [10]: https://arxiv.org/abs/1711.09601
 [11]: http://s-f-walker.org.uk/pubsebooks/pdfs/The_Organization_of_Behavior-Donald_O._Hebb.pdf
 [12]: http://yann.lecun.com/exdb/mnist/
+[13]: #someid
 
 
